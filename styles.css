@@ -982,9 +982,11 @@ body {
     display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
 }
 .ideas-section-header h3 { font-size: 14px; font-weight: 600; }
+.ideas-filters { display: flex; gap: 6px; }
 .ideas-category-select {
     padding: 6px 10px; font-size: 12px; background: var(--bg-input); color: var(--text-primary);
     border: 1px solid var(--border); border-radius: var(--radius-sm); outline: none;
+    font-family: inherit;
 }
 .ideas-trending-grid {
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;

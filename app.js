@@ -1959,14 +1959,29 @@ function renderYouTubeVideos(videos) {
 // ===== Ideas (아이디어 찾기) =====
 let _ideasTrendingLoaded = false;
 let _ideasActiveKeyword = '';
+let _ideasTrendingCache = [];
+
+function parseDurationToSeconds(iso) {
+    if (!iso) return 0;
+    const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!m) return 0;
+    return (parseInt(m[1] || 0) * 3600) + (parseInt(m[2] || 0) * 60) + parseInt(m[3] || 0);
+}
 
 function setupIdeas() {
     document.getElementById('ideasCategorySelect').addEventListener('change', () => {
+        _ideasTrendingLoaded = false;
         loadTrendingVideos(document.getElementById('ideasCategorySelect').value);
+    });
+    document.getElementById('ideasDurationSelect').addEventListener('change', () => {
+        filterAndRenderTrending();
     });
     document.getElementById('ideasAnalyzeBtn').addEventListener('click', analyzeKeyword);
     document.getElementById('ideasKeywordInput').addEventListener('keydown', e => {
         if (e.key === 'Enter') analyzeKeyword();
+    });
+    document.getElementById('ideasKeywordDuration').addEventListener('change', () => {
+        if (_ideasActiveKeyword) loadKeywordVideos(_ideasActiveKeyword);
     });
 }
 
@@ -1988,10 +2003,28 @@ async function loadTrendingVideos(categoryId) {
         }
         const videos = await res.json();
         _ideasTrendingLoaded = true;
-        renderTrendingVideos(videos);
+        _ideasTrendingCache = videos;
+        filterAndRenderTrending();
     } catch (err) {
         grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">오류: ${escapeHtml(err.message)}</p></div>`;
     }
+}
+
+function filterAndRenderTrending() {
+    const duration = document.getElementById('ideasDurationSelect').value;
+    let filtered = _ideasTrendingCache;
+    if (duration === 'short') {
+        filtered = filtered.filter(v => {
+            const sec = parseDurationToSeconds(v.duration);
+            return sec > 0 && sec <= 60;
+        });
+    } else if (duration === 'long') {
+        filtered = filtered.filter(v => {
+            const sec = parseDurationToSeconds(v.duration);
+            return sec > 240;
+        });
+    }
+    renderTrendingVideos(filtered);
 }
 
 function renderTrendingVideos(videos) {
@@ -2090,7 +2123,9 @@ async function loadKeywordVideos(keyword) {
     container.innerHTML = '<div class="discover-loading">관련 영상을 검색하는 중...</div>';
 
     try {
-        const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(keyword)}&order=viewCount&maxResults=6&pages=1`);
+        const kwDuration = document.getElementById('ideasKeywordDuration').value;
+        const kwDurationParam = kwDuration ? `&videoDuration=${encodeURIComponent(kwDuration)}` : '';
+        const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(keyword)}&order=viewCount&maxResults=6&pages=1${kwDurationParam}`);
         if (!res.ok) {
             let msg = '영상 검색에 실패했습니다';
             try { const err = await res.json(); msg = err.error || msg; } catch {}

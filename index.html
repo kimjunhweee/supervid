@@ -356,16 +356,23 @@
                 <div class="ideas-section">
                     <div class="ideas-section-header">
                         <h3>트렌드 영상</h3>
-                        <select id="ideasCategorySelect" class="ideas-category-select">
-                            <option value="">전체</option>
-                            <option value="10">음악</option>
-                            <option value="20">게임</option>
-                            <option value="24">엔터테인먼트</option>
-                            <option value="27">교육</option>
-                            <option value="28">과학기술</option>
-                            <option value="26">하우투</option>
-                            <option value="25">뉴스</option>
-                        </select>
+                        <div class="ideas-filters">
+                            <select id="ideasDurationSelect" class="ideas-category-select">
+                                <option value="">전체</option>
+                                <option value="short">숏츠</option>
+                                <option value="long">롱폼</option>
+                            </select>
+                            <select id="ideasCategorySelect" class="ideas-category-select">
+                                <option value="">카테고리</option>
+                                <option value="10">음악</option>
+                                <option value="20">게임</option>
+                                <option value="24">엔터테인먼트</option>
+                                <option value="27">교육</option>
+                                <option value="28">과학기술</option>
+                                <option value="26">하우투</option>
+                                <option value="25">뉴스</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="ideas-trending-grid" id="ideasTrendingGrid">
                         <div class="discover-empty">
@@ -379,6 +386,11 @@
                     </div>
                     <div class="ideas-keyword-input-wrap">
                         <input type="text" id="ideasKeywordInput" placeholder="키워드를 입력하세요" class="ideas-keyword-input">
+                        <select id="ideasKeywordDuration" class="ideas-category-select">
+                            <option value="">전체</option>
+                            <option value="short">숏츠</option>
+                            <option value="medium">롱폼</option>
+                        </select>
                         <button class="btn btn-primary" id="ideasAnalyzeBtn">분석</button>
                     </div>
                     <div class="ideas-keyword-chips" id="ideasKeywordChips"></div>

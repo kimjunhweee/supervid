@@ -348,7 +348,7 @@ app.get('/api/youtube/trending', requireAuth, async (req, res) => {
     try {
         const categoryParam = videoCategoryId ? `&videoCategoryId=${encodeURIComponent(videoCategoryId)}` : '';
         const videosRes = await fetch(
-            `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&chart=mostPopular&regionCode=${encodeURIComponent(regionCode)}&maxResults=${perPage}${categoryParam}&key=${API_KEY}`
+            `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet,contentDetails&chart=mostPopular&regionCode=${encodeURIComponent(regionCode)}&maxResults=${perPage}${categoryParam}&key=${API_KEY}`
         );
         trackUnits('트렌드 조회', 1);
         const videosData = await videosRes.json();
@@ -378,6 +378,7 @@ app.get('/api/youtube/trending', requireAuth, async (req, res) => {
             channelId: v.snippet.channelId,
             channelTitle: v.snippet.channelTitle,
             publishedAt: v.snippet.publishedAt,
+            duration: v.contentDetails ? v.contentDetails.duration : null,
             viewCount: parseInt(v.statistics.viewCount || 0),
             likeCount: parseInt(v.statistics.likeCount || 0),
             commentCount: parseInt(v.statistics.commentCount || 0),
