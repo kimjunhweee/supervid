@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervid</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <div class="login-logo">
+                <span class="logo-icon">S</span>
+                <span class="login-logo-text">Supervid</span>
+            </div>
+            <p class="login-desc">콘텐츠 관리의 시작, Google 계정으로 로그인하세요</p>
+            <div id="googleLoginBtn"></div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <nav class="sidebar" id="sidebar" style="display:none">
+        <div class="sidebar-logo">
+            <span class="logo-icon">S</span>
+            <span class="logo-text">Supervid</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item active" data-tab="dashboard">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                <span>대시보드</span>
+            </li>
+            <li class="menu-item" data-tab="kanban">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>
+                <span>콘텐츠 관리</span>
+            </li>
+            <li class="menu-item" data-tab="calendar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <span>캘린더</span>
+            </li>
+            <li class="menu-item" data-tab="discover">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span>콘텐츠 탐색</span>
+            </li>
+            <li class="menu-item" data-tab="channels">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <span>채널 탐색</span>
+            </li>
+            <li class="menu-item" data-tab="references">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                <span>레퍼런스</span>
+            </li>
+            <li class="menu-item" data-tab="ideas">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 00-4 12.7V17h8v-2.3A7 7 0 0012 2z"/></svg>
+                <span>아이디어 찾기</span>
+            </li>
+            <li class="menu-item" data-tab="addetect">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                <span>광고 탐지</span>
+            </li>
+            <li class="menu-item" data-tab="outliers">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+                </svg>
+                <span>아웃라이어</span>
+            </li>
+        </ul>
+        <div class="sidebar-footer">
+            <div class="nav-user" id="navUser" style="display:none">
+                <button class="nav-user-trigger" id="navUserTrigger">
+                    <img class="nav-user-avatar" id="userAvatar" src="" alt="">
+                    <div class="nav-user-info">
+                        <span class="nav-user-name" id="userName"></span>
+                        <span class="nav-user-email" id="userEmail"></span>
+                    </div>
+                    <svg class="nav-user-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7,15 12,20 17,15"/><polyline points="7,9 12,4 17,9"/></svg>
+                </button>
+                <!-- Dropdown -->
+                <div class="nav-user-dropdown" id="navUserDropdown">
+                    <div class="nav-user-dropdown-header">
+                        <img class="nav-user-avatar" id="dropdownAvatar" src="" alt="">
+                        <div class="nav-user-info">
+                            <span class="nav-user-name" id="dropdownName"></span>
+                            <span class="nav-user-email" id="dropdownEmail"></span>
+                        </div>
+                    </div>
+                    <div class="nav-user-dropdown-sep"></div>
+                    <button class="nav-user-dropdown-item" id="myPageBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4-4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span>마이페이지</span>
+                    </button>
+                    <button class="nav-user-dropdown-item" id="logoutBtn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        <span>로그아웃</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent" style="display:none">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="sidebar-trigger" id="sidebarToggle">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+                </button>
+                <div class="header-separator"></div>
+                <div>
+                    <h1 id="pageTitle">대시보드</h1>
+                    <p id="pageDesc">콘텐츠 현황을 한눈에 확인하세요</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="header-add-btn" id="headerAddBtn">+ 새 콘텐츠</button>
+                <button class="theme-toggle" id="themeToggle">
+                    <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg class="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                </button>
+                <span class="today-date" id="todayDate"></span>
+            </div>
+        </header>
+
+        <!-- Dashboard Tab -->
+        <section class="tab-content active" id="tab-dashboard">
+            <!-- 내 채널 핵심 지표 -->
+            <div class="my-channel-stats" id="myChannelStats">
+                <div class="my-channel-stat-card">
+                    <span class="my-channel-stat-label">SUBSCRIBERS</span>
+                    <span class="my-channel-stat-number" id="myChSubscribers">-</span>
+                    <div class="my-channel-progress">
+                        <div class="my-channel-progress-bar"><div class="my-channel-progress-fill" id="myChSubsProgress"></div></div>
+                        <div class="my-channel-milestone">
+                            <span id="myChSubsMin">0</span>
+                            <span id="myChSubsMax">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="my-channel-stat-card">
+                    <span class="my-channel-stat-label">VIEWS</span>
+                    <span class="my-channel-stat-number" id="myChTotalViews">-</span>
+                    <div class="my-channel-progress">
+                        <div class="my-channel-progress-bar"><div class="my-channel-progress-fill" id="myChViewsProgress"></div></div>
+                        <div class="my-channel-milestone">
+                            <span id="myChViewsMin">0</span>
+                            <span id="myChViewsMax">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="my-channel-empty" id="myChannelEmpty" style="display:none">
+                <span>채널을 연동하면 구독자·조회수를 확인할 수 있습니다</span>
+                <button class="btn btn-sm btn-primary" id="myChConnectBtn">채널 연동</button>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="card upcoming-card">
+                    <div class="card-header">
+                        <h3>이번 주 할 일</h3>
+                    </div>
+                    <div class="card-body" id="weeklyTodos">
+                        <p class="empty-state">이번 주 예정된 콘텐츠가 없습니다</p>
+                    </div>
+                </div>
+                <div class="card recent-card">
+                    <div class="card-header">
+                        <h3>스크립트 현황</h3>
+                    </div>
+                    <div class="card-body" id="recentScripts">
+                        <p class="empty-state">작성된 스크립트가 없습니다</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <div class="chart-card-header">
+                    <div>
+                        <h3>콘텐츠 현황</h3>
+                        <p>주간 콘텐츠 게시 및 진행 추이</p>
+                    </div>
+                    <select id="chartRange" class="chart-range-select">
+                        <option value="6">최근 6개월</option>
+                        <option value="3">최근 3개월</option>
+                    </select>
+                </div>
+                <div class="chart-canvas-wrap">
+                    <canvas id="monthlyChart"></canvas>
+                    <div class="chart-tooltip" id="chartTooltip"></div>
+                </div>
+                <div class="chart-legend">
+                    <span class="chart-legend-item"><span class="chart-legend-dot" id="legendDot1"></span>게시완료</span>
+                    <span class="chart-legend-item"><span class="chart-legend-dot" id="legendDot2"></span>진행중</span>
+                </div>
+            </div>
+
+            <!-- YouTube Integration -->
+            <div class="youtube-section" id="youtubeSection">
+                <div class="youtube-header">
+                    <h3>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22.54 6.42a2.78 2.78 0 00-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 00-1.94 2A29 29 0 001 11.75a29 29 0 00.46 5.33A2.78 2.78 0 003.4 19.1c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 001.94-2 29 29 0 00.46-5.25 29 29 0 00-.46-5.43z"/><polygon points="9.75,15.02 15.5,11.75 9.75,8.48"/></svg>
+                        YouTube 채널
+                    </h3>
+                    <div class="yt-header-actions">
+                        <button class="btn btn-sm btn-secondary" id="ytRefreshBtn" style="display:none">새로고침</button>
+                        <button class="btn btn-sm btn-primary" id="ytConnectBtn">채널 연동</button>
+                    </div>
+                </div>
+
+                <!-- 연동 전 -->
+                <div class="yt-empty" id="ytEmpty">
+                    <p>YouTube 채널을 연동하면 구독자, 조회수 등을 대시보드에서 확인할 수 있습니다.</p>
+                </div>
+
+                <!-- 연동 후: 채널 통계 -->
+                <div class="yt-stats-grid" id="ytStats" style="display:none">
+                    <div class="stat-card">
+                        <div class="stat-icon red">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-number" id="ytSubscribers">-</span>
+                            <span class="stat-label">구독자</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-number" id="ytTotalViews">-</span>
+                            <span class="stat-label">총 조회수</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23,7 16,12 23,17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-number" id="ytVideoCount">-</span>
+                            <span class="stat-label">총 영상</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 연동 후: 최근 영상 -->
+                <div class="card yt-videos-card" id="ytVideosCard" style="display:none">
+                    <div class="card-header">
+                        <h3>최근 영상 성과</h3>
+                    </div>
+                    <div class="card-body" id="ytVideosList">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Kanban Tab -->
+        <section class="tab-content" id="tab-kanban">
+            <div class="kanban-toolbar">
+                <button class="btn btn-primary" id="kanbanAddBtn">+ 새 콘텐츠</button>
+            </div>
+            <div class="kanban-board" id="kanbanBoard">
+                <div class="kanban-column" data-status="idea">
+                    <div class="kanban-col-header"><span class="kanban-col-dot idea"></span>아이디어<span class="kanban-col-count" data-count="idea">0</span></div>
+                    <div class="kanban-col-body" data-status="idea"></div>
+                </div>
+                <div class="kanban-column" data-status="scripting">
+                    <div class="kanban-col-header"><span class="kanban-col-dot scripting"></span>스크립트<span class="kanban-col-count" data-count="scripting">0</span></div>
+                    <div class="kanban-col-body" data-status="scripting"></div>
+                </div>
+                <div class="kanban-column" data-status="filming">
+                    <div class="kanban-col-header"><span class="kanban-col-dot filming"></span>촬영<span class="kanban-col-count" data-count="filming">0</span></div>
+                    <div class="kanban-col-body" data-status="filming"></div>
+                </div>
+                <div class="kanban-column" data-status="editing">
+                    <div class="kanban-col-header"><span class="kanban-col-dot editing"></span>편집<span class="kanban-col-count" data-count="editing">0</span></div>
+                    <div class="kanban-col-body" data-status="editing"></div>
+                </div>
+                <div class="kanban-column" data-status="scheduled">
+                    <div class="kanban-col-header"><span class="kanban-col-dot scheduled"></span>예약<span class="kanban-col-count" data-count="scheduled">0</span></div>
+                    <div class="kanban-col-body" data-status="scheduled"></div>
+                </div>
+                <div class="kanban-column" data-status="published">
+                    <div class="kanban-col-header"><span class="kanban-col-dot published"></span>게시완료<span class="kanban-col-count" data-count="published">0</span></div>
+                    <div class="kanban-col-body" data-status="published"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Calendar Tab -->
+        <section class="tab-content" id="tab-calendar">
+            <div class="calendar-header">
+                <button class="cal-nav-btn" id="prevMonth">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+                </button>
+                <h2 id="calendarTitle">2026년 2월</h2>
+                <button class="cal-nav-btn" id="nextMonth">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+                </button>
+                <button class="btn btn-primary" id="addContentBtn">+ 콘텐츠 추가</button>
+            </div>
+            <div class="calendar-grid">
+                <div class="cal-day-header">일</div>
+                <div class="cal-day-header">월</div>
+                <div class="cal-day-header">화</div>
+                <div class="cal-day-header">수</div>
+                <div class="cal-day-header">목</div>
+                <div class="cal-day-header">금</div>
+                <div class="cal-day-header">토</div>
+            </div>
+            <div class="calendar-days" id="calendarDays"></div>
+        </section>
+
+        <!-- Discover Tab -->
+        <section class="tab-content" id="tab-discover">
+            <div class="discover-header">
+                <span class="discover-result-info" id="discoverResultInfo"></span>
+                <button class="btn btn-primary" id="openSearchModalBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    검색
+                </button>
+            </div>
+            <div class="discover-active-filters" id="discoverActiveFilters"></div>
+            <div class="discover-grid" id="discoverGrid">
+                <div class="discover-empty" id="discoverEmpty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <p>검색 버튼을 눌러 인기 영상을 탐색하세요</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Channels Tab -->
+        <section class="tab-content" id="tab-channels">
+            <div class="discover-header">
+                <span class="discover-result-info" id="channelResultInfo"></span>
+                <button class="btn btn-primary" id="openChannelSearchBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    채널 검색
+                </button>
+            </div>
+            <div class="channel-grid" id="channelGrid">
+                <div class="discover-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                    <p>채널 검색 버튼을 눌러 유튜브 채널을 탐색하세요</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ideas Tab -->
+        <section class="tab-content" id="tab-ideas">
+            <div class="ideas-layout">
+                <div class="ideas-section">
+                    <div class="ideas-section-header">
+                        <h3>트렌드 영상</h3>
+                        <select id="ideasCategorySelect" class="ideas-category-select">
+                            <option value="">전체</option>
+                            <option value="10">음악</option>
+                            <option value="20">게임</option>
+                            <option value="24">엔터테인먼트</option>
+                            <option value="27">교육</option>
+                            <option value="28">과학기술</option>
+                            <option value="26">하우투</option>
+                            <option value="25">뉴스</option>
+                        </select>
+                    </div>
+                    <div class="ideas-trending-grid" id="ideasTrendingGrid">
+                        <div class="discover-empty">
+                            <p>트렌드 영상을 불러오는 중...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="ideas-section">
+                    <div class="ideas-section-header">
+                        <h3>키워드 분석</h3>
+                    </div>
+                    <div class="ideas-keyword-input-wrap">
+                        <input type="text" id="ideasKeywordInput" placeholder="키워드를 입력하세요" class="ideas-keyword-input">
+                        <button class="btn btn-primary" id="ideasAnalyzeBtn">분석</button>
+                    </div>
+                    <div class="ideas-keyword-chips" id="ideasKeywordChips"></div>
+                    <div class="ideas-keyword-videos" id="ideasKeywordVideos"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ad Detect Tab -->
+        <section class="tab-content" id="tab-addetect">
+            <div class="addetect-search-bar">
+                <input type="text" id="addetectKeyword" class="addetect-input" placeholder="광고주/브랜드명 입력 (예: 현대자동차, 삼성전자, 쿠팡)">
+                <select id="addetectStrategy" class="addetect-select">
+                    <option value="combined">통합 검색 (추천)</option>
+                    <option value="ad">광고 키워드 포함</option>
+                    <option value="ppl">PPL/협찬 키워드</option>
+                    <option value="broad">브랜드명만</option>
+                </select>
+                <button class="btn btn-primary" id="addetectSearchBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    광고 검색
+                </button>
+            </div>
+            <div class="addetect-summary" id="addetectSummary" style="display:none">
+                <div class="addetect-summary-stat">
+                    <span class="addetect-summary-number ad-highlight" id="adDetectedCount">0</span>
+                    <span class="addetect-summary-label">탐지된 광고</span>
+                </div>
+                <div class="addetect-summary-stat">
+                    <span class="addetect-summary-number" id="adChannelCount">0</span>
+                    <span class="addetect-summary-label">협업 채널</span>
+                </div>
+                <div class="addetect-summary-stat">
+                    <span class="addetect-summary-number" id="adTotalCount">0</span>
+                    <span class="addetect-summary-label">검색 영상</span>
+                </div>
+                <div class="addetect-summary-stat">
+                    <span class="addetect-summary-number" id="adRatio">0%</span>
+                    <span class="addetect-summary-label">광고 비율</span>
+                </div>
+            </div>
+            <div class="addetect-channels-section" id="addetectChannelsSection" style="display:none">
+                <div class="addetect-channels-header">
+                    <h4>협업 채널</h4>
+                    <span class="addetect-channels-desc">이 브랜드와 광고를 진행한 채널 목록</span>
+                </div>
+                <div class="addetect-channels-list" id="addetectChannelsList"></div>
+            </div>
+            <div class="addetect-filter-row" id="addetectFilterRow" style="display:none">
+                <button class="addetect-filter-btn" data-filter="all">전체</button>
+                <button class="addetect-filter-btn active" data-filter="ad">광고만</button>
+                <button class="addetect-filter-btn" data-filter="clean">비광고</button>
+            </div>
+            <div class="addetect-brands" id="addetectBrands"></div>
+            <div class="addetect-grid" id="addetectGrid">
+                <div class="discover-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    <p>브랜드명을 검색하면 해당 브랜드의 유튜브 광고 캠페인을 모아볼 수 있습니다</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin-top:4px">예: "현대자동차" → 현대자동차가 진행한 유튜브 광고/협찬 영상 탐지</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Outliers Tab -->
+        <section class="tab-content" id="tab-outliers">
+            <div class="outlier-search-bar">
+                <input type="text" id="outlierKeyword" class="outlier-input" placeholder="키워드 입력 (예: 자취 요리, 주식 투자, 운동 루틴)">
+                <select id="outlierMinScore" class="outlier-select">
+                    <option value="2">2x 이상</option>
+                    <option value="3">3x 이상</option>
+                    <option value="5">5x 이상</option>
+                    <option value="10">10x 이상</option>
+                    <option value="20">20x 이상</option>
+                </select>
+                <button class="btn btn-primary" id="outlierSearchBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+                    아웃라이어 찾기
+                </button>
+            </div>
+            <div class="outlier-summary" id="outlierSummary" style="display:none">
+                <div class="outlier-summary-stat">
+                    <span class="outlier-summary-number" id="outlierFoundCount">0</span>
+                    <span class="outlier-summary-label">발견된 아웃라이어</span>
+                </div>
+                <div class="outlier-summary-stat">
+                    <span class="outlier-summary-number" id="outlierMaxScore">0x</span>
+                    <span class="outlier-summary-label">최고 배수</span>
+                </div>
+                <div class="outlier-summary-stat">
+                    <span class="outlier-summary-number" id="outlierAvgScore">0x</span>
+                    <span class="outlier-summary-label">평균 배수</span>
+                </div>
+                <div class="outlier-summary-stat">
+                    <span class="outlier-summary-number" id="outlierChannelCount">0</span>
+                    <span class="outlier-summary-label">분석 채널</span>
+                </div>
+            </div>
+            <div class="outlier-grid" id="outlierGrid">
+                <div class="discover-empty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px">
+                        <polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/>
+                    </svg>
+                    <p>키워드를 검색하면 채널 평균 대비 폭발적으로 성과가 좋은 영상을 찾아줍니다</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin-top:4px">채널 중앙값 조회수 대비 N배 이상인 영상 = 아웃라이어</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- References Tab -->
+        <section class="tab-content" id="tab-references">
+            <div class="ref-header">
+                <span class="ref-count" id="refCount">0개의 레퍼런스</span>
+                <button class="btn btn-secondary btn-sm" id="refClearAllBtn" style="display:none">전체 삭제</button>
+            </div>
+            <div class="ref-folder-bar" id="refFolderBar">
+                <!-- JS에서 동적 렌더링: [전체] [미분류] [폴더1] ... [+ 새 폴더] -->
+            </div>
+            <div class="ref-grid" id="refGrid">
+                <div class="discover-empty" id="refEmpty">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                    <p>저장된 레퍼런스가 없습니다</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin-top:4px">콘텐츠 탐색에서 영상을 검색하고 레퍼런스로 저장해보세요</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- New Content Tab (step wizard) -->
+        <section class="tab-content" id="tab-newcontent">
+            <div class="nc-page">
+                <!-- Step indicator -->
+                <div class="nc-steps">
+                    <div class="nc-step active" data-step="0"><span class="nc-step-dot">1</span><span class="nc-step-label">아이디어</span></div>
+                    <div class="nc-step-line"></div>
+                    <div class="nc-step" data-step="1"><span class="nc-step-dot">2</span><span class="nc-step-label">레퍼런스</span></div>
+                    <div class="nc-step-line"></div>
+                    <div class="nc-step" data-step="2"><span class="nc-step-dot">3</span><span class="nc-step-label">제목</span></div>
+                    <div class="nc-step-line"></div>
+                    <div class="nc-step" data-step="3"><span class="nc-step-dot">4</span><span class="nc-step-label">설정</span></div>
+                    <div class="nc-step-line"></div>
+                    <div class="nc-step" data-step="4"><span class="nc-step-dot">5</span><span class="nc-step-label">메모</span></div>
+                </div>
+
+                <!-- Step 0: 아이디어 -->
+                <div class="nc-step-content active" data-step-content="0">
+                    <h2 class="nc-step-title">어떤 콘텐츠를 만들고 싶으세요?</h2>
+                    <p class="nc-step-desc">주제, 키워드, 아이디어를 자유롭게 적어주세요</p>
+                    <textarea id="ncIdea" class="nc-step-textarea" rows="3" placeholder="예: 자취생 냉장고 정리 꿀팁, 5만원 이하로 가능한 방법들..."></textarea>
+                </div>
+
+                <!-- Step 1: 레퍼런스 -->
+                <div class="nc-step-content" data-step-content="1">
+                    <h2 class="nc-step-title">관련 영상을 확인해보세요</h2>
+                    <p class="nc-step-desc">비슷한 주제의 인기 영상을 참고하면 제목과 방향을 잡기 쉬워요</p>
+                    <div class="nc-ref-search-bar">
+                        <input id="ncRefSearchInput" class="nc-step-input" placeholder="검색어 수정...">
+                        <button class="btn btn-primary" id="ncRefSearchBtn">검색</button>
+                    </div>
+                    <div class="nc-ref-chips" id="ncRefChips"></div>
+                    <div class="nc-ref-loading" id="ncRefLoading" style="display:none">검색 중...</div>
+                    <div class="nc-ref-list" id="ncRefList"></div>
+                    <div class="nc-ref-skip"><a href="#" id="ncRefSkip">건너뛰기</a></div>
+                </div>
+
+                <!-- Step 2: 제목 -->
+                <div class="nc-step-content" data-step-content="2">
+                    <h2 class="nc-step-title">콘텐츠 제목을 확정하세요</h2>
+                    <p class="nc-step-desc">인기 영상의 제목 패턴을 참고해서 매력적인 제목을 완성하세요</p>
+                    <input type="text" id="ncTitle" class="nc-step-input" placeholder="제목을 입력하세요">
+                    <div class="nc-title-patterns" id="ncTitlePatterns"></div>
+                    <div class="nc-keyword-chips" id="ncKeywordChips"></div>
+                </div>
+
+                <!-- Step 3: 설정 (플랫폼 + 유형 + 일정 통합) -->
+                <div class="nc-step-content" data-step-content="3">
+                    <h2 class="nc-step-title">콘텐츠 설정</h2>
+                    <p class="nc-step-desc">플랫폼, 유형, 업로드 일정을 설정하세요</p>
+                    <div class="nc-settings-section">
+                        <label class="nc-settings-label">플랫폼</label>
+                        <div class="nc-option-grid" id="ncPlatformGrid">
+                            <label class="nc-option-card active" data-value="youtube">
+                                <input type="radio" name="ncPlatform" value="youtube" checked>
+                                <span class="nc-option-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22.54 6.42a2.78 2.78 0 00-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 00-1.94 2A29 29 0 001 11.75a29 29 0 00.46 5.33A2.78 2.78 0 003.4 19.1c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 001.94-2 29 29 0 00.46-5.25 29 29 0 00-.46-5.43z"/><polygon points="9.75,15.02 15.5,11.75 9.75,8.48"/></svg>
+                                </span>
+                                <span class="nc-option-label">YouTube</span>
+                            </label>
+                            <label class="nc-option-card" data-value="instagram">
+                                <input type="radio" name="ncPlatform" value="instagram">
+                                <span class="nc-option-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>
+                                </span>
+                                <span class="nc-option-label">Instagram</span>
+                            </label>
+                            <label class="nc-option-card" data-value="tiktok">
+                                <input type="radio" name="ncPlatform" value="tiktok">
+                                <span class="nc-option-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12a4 4 0 104 4V4a5 5 0 005 5"/></svg>
+                                </span>
+                                <span class="nc-option-label">TikTok</span>
+                            </label>
+                            <label class="nc-option-card" data-value="blog">
+                                <input type="radio" name="ncPlatform" value="blog">
+                                <span class="nc-option-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                </span>
+                                <span class="nc-option-label">Blog</span>
+                            </label>
+                            <label class="nc-option-card" data-value="other">
+                                <input type="radio" name="ncPlatform" value="other">
+                                <span class="nc-option-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                                </span>
+                                <span class="nc-option-label">기타</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="nc-settings-section">
+                        <label class="nc-settings-label">유형</label>
+                        <div class="nc-option-grid nc-option-grid-3" id="ncTypeGrid">
+                            <label class="nc-option-card active" data-value="long">
+                                <input type="radio" name="ncType" value="long" checked>
+                                <span class="nc-option-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23,7 16,12 23,17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                                </span>
+                                <span class="nc-option-label">롱폼 영상</span>
+                            </label>
+                            <label class="nc-option-card" data-value="short">
+                                <input type="radio" name="ncType" value="short">
+                                <span class="nc-option-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+                                </span>
+                                <span class="nc-option-label">숏츠/릴스</span>
+                            </label>
+                            <label class="nc-option-card" data-value="post">
+                                <input type="radio" name="ncType" value="post">
+                                <span class="nc-option-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                </span>
+                                <span class="nc-option-label">포스트/글</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="nc-settings-section">
+                        <label class="nc-settings-label">업로드 예정일</label>
+                        <input type="date" id="ncDate" class="nc-step-input">
+                    </div>
+                </div>
+
+                <!-- Step 4: 메모 + 확인 -->
+                <div class="nc-step-content" data-step-content="4">
+                    <h2 class="nc-step-title">마지막으로 메모를 남겨주세요</h2>
+                    <p class="nc-step-desc">참고 사항을 적고 내용을 확인하세요</p>
+                    <textarea id="ncMemo" class="nc-step-textarea" rows="4" placeholder="예: 야외 촬영, 소품 준비 필요"></textarea>
+                    <div class="nc-review-card" id="ncReviewCard">
+                        <div>제목: <strong id="ncReviewTitle">-</strong></div>
+                        <div>플랫폼: <span id="ncReviewPlatform">-</span> · 유형: <span id="ncReviewType">-</span></div>
+                        <div>업로드 예정: <span id="ncReviewDate">-</span></div>
+                        <div>레퍼런스: <span id="ncReviewRefs">-</span></div>
+                    </div>
+                </div>
+
+                <!-- Nav buttons -->
+                <div class="nc-nav">
+                    <button class="btn btn-secondary" id="ncPrevBtn">이전</button>
+                    <button class="btn btn-primary" id="ncNextBtn">다음</button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal: Content (with tabs for info + script) -->
+    <div class="modal-overlay" id="contentModal">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3 id="contentModalTitle">콘텐츠 추가</h3>
+                <button class="modal-close" id="closeContentModal">&times;</button>
+            </div>
+            <div class="modal-tabs">
+                <button class="modal-tab active" data-modal-tab="info">기본 정보</button>
+                <button class="modal-tab" data-modal-tab="script">스크립트</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="contentId">
+
+                <!-- Tab: 기본 정보 -->
+                <div class="modal-tab-panel active" data-modal-panel="info">
+                    <div class="form-group">
+                        <label>제목</label>
+                        <input type="text" id="contentTitle" placeholder="콘텐츠 제목을 입력하세요">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>플랫폼</label>
+                            <select id="contentPlatform">
+                                <option value="youtube">YouTube</option>
+                                <option value="instagram">Instagram</option>
+                                <option value="tiktok">TikTok</option>
+                                <option value="blog">Blog</option>
+                                <option value="other">기타</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>상태</label>
+                            <select id="contentStatus">
+                                <option value="idea">아이디어</option>
+                                <option value="scripting">스크립트 작성중</option>
+                                <option value="filming">촬영중</option>
+                                <option value="editing">편집중</option>
+                                <option value="scheduled">예약됨</option>
+                                <option value="published">게시완료</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>업로드 예정일</label>
+                            <input type="date" id="contentDate">
+                        </div>
+                        <div class="form-group">
+                            <label>유형</label>
+                            <select id="contentType">
+                                <option value="long">롱폼 영상</option>
+                                <option value="short">숏츠/릴스</option>
+                                <option value="post">포스트/글</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>메모</label>
+                        <textarea id="contentMemo" placeholder="메모를 입력하세요" rows="2"></textarea>
+                    </div>
+
+                    <!-- Upload Checklist -->
+                    <div class="form-group">
+                        <label>업로드 체크리스트</label>
+                        <div class="checklist" id="uploadChecklist">
+                            <label class="checklist-item"><input type="checkbox" data-key="thumbnail"><span>썸네일 제작</span></label>
+                            <label class="checklist-item"><input type="checkbox" data-key="title_final"><span>제목 확정</span></label>
+                            <label class="checklist-item"><input type="checkbox" data-key="description"><span>설명/해시태그 작성</span></label>
+                            <label class="checklist-item"><input type="checkbox" data-key="tags"><span>태그 설정</span></label>
+                            <label class="checklist-item"><input type="checkbox" data-key="subtitle"><span>자막 추가</span></label>
+                            <label class="checklist-item"><input type="checkbox" data-key="endscreen"><span>엔드스크린/카드</span></label>
+                            <label class="checklist-item"><input type="checkbox" data-key="scheduled_time"><span>예약 시간 설정</span></label>
+                        </div>
+                        <div class="checklist-progress">
+                            <div class="checklist-progress-bar"><div class="checklist-progress-fill" id="checklistProgress"></div></div>
+                            <span class="checklist-progress-text" id="checklistText">0/7</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab: 스크립트 -->
+                <div class="modal-tab-panel" data-modal-panel="script">
+                    <div class="form-group">
+                        <label>스크립트 상태</label>
+                        <select id="contentScriptStatus">
+                            <option value="">미작성</option>
+                            <option value="draft">초안</option>
+                            <option value="writing">작성중</option>
+                            <option value="done">완료</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>스크립트 내용</label>
+                        <div class="editor-toolbar" id="contentEditorToolbar">
+                            <button class="toolbar-btn" data-action="hook" title="훅 (첫 5초)">훅</button>
+                            <button class="toolbar-btn" data-action="heading" title="섹션 제목">H</button>
+                            <button class="toolbar-btn" data-action="bold" title="굵게">B</button>
+                            <button class="toolbar-btn" data-action="scene" title="장면 구분">장면</button>
+                            <button class="toolbar-btn" data-action="note" title="연출 노트">[노트]</button>
+                            <button class="toolbar-btn" data-action="cta" title="CTA">CTA</button>
+                            <span class="word-count" id="wordCount">0자</span>
+                        </div>
+                        <textarea id="contentScriptContent" placeholder="스크립트를 작성하세요...
+
+## 훅 (첫 5초)
+시청자를 사로잡는 첫 마디...
+
+## 인트로
+안녕하세요, 오늘은 ...
+
+## 본문
+[장면: 화면 전환]
+핵심 포인트는...
+
+## CTA
+좋아요와 구독 부탁드립니다!
+
+## 아웃트로
+다음 영상에서 만나요!" rows="18"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="deleteContentBtn" style="display:none">삭제</button>
+                <button class="btn btn-primary" id="saveContentBtn">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: My Page -->
+    <div class="modal-overlay" id="myPageModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>마이페이지</h3>
+                <button class="modal-close" id="closeMyPageModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="mypage-profile">
+                    <img class="mypage-avatar" id="mypageAvatar" src="" alt="">
+                    <div class="mypage-info">
+                        <span class="mypage-name" id="mypageName"></span>
+                        <span class="mypage-email" id="mypageEmail"></span>
+                    </div>
+                </div>
+                <div class="mypage-section">
+                    <div class="mypage-row">
+                        <span class="mypage-label">로그인 방법</span>
+                        <span class="mypage-value">Google</span>
+                    </div>
+                    <div class="mypage-row">
+                        <span class="mypage-label">콘텐츠 수</span>
+                        <span class="mypage-value" id="mypageContentCount">0</span>
+                    </div>
+                    <div class="mypage-row">
+                        <span class="mypage-label">게시 완료</span>
+                        <span class="mypage-value" id="mypagePublishedCount">0</span>
+                    </div>
+                    <div class="mypage-row">
+                        <span class="mypage-label">스크립트 작성</span>
+                        <span class="mypage-value" id="mypageScriptCount">0</span>
+                    </div>
+                </div>
+                <div class="mypage-usage-section" id="mypageUsageSection">
+                    <h4 class="mypage-usage-title">API 사용량 (오늘)</h4>
+                    <div class="mypage-usage-bar-wrap">
+                        <div class="mypage-usage-bar">
+                            <div class="mypage-usage-bar-fill" id="mypageUsageFill"></div>
+                        </div>
+                        <span class="mypage-usage-text" id="mypageUsageText">로딩 중...</span>
+                    </div>
+                    <div class="mypage-usage-detail" id="mypageUsageDetail"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="mypageLogoutBtn">로그아웃</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <div class="confirm-overlay" id="confirmDialog">
+        <div class="confirm-box">
+            <p class="confirm-message">변경사항을 저장하지 않고 나가시겠습니까?</p>
+            <div class="confirm-actions">
+                <button class="btn btn-secondary" id="confirmDiscard">저장 안 함</button>
+                <button class="btn btn-primary" id="confirmSave">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Search -->
+    <div class="modal-overlay" id="searchModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>콘텐츠 검색</h3>
+                <button class="modal-close" id="closeSearchModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>키워드</label>
+                    <input type="text" id="searchKeyword" placeholder="검색어를 입력하세요">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>영상 유형</label>
+                        <select id="searchDuration">
+                            <option value="">전체</option>
+                            <option value="short">숏츠 (4분 이하)</option>
+                            <option value="medium">롱폼 (4~20분)</option>
+                            <option value="long">롱폼+ (20분 이상)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>정렬</label>
+                        <select id="searchOrder">
+                            <option value="viewCount">조회수순</option>
+                            <option value="relevance">관련도순</option>
+                            <option value="date">최신순</option>
+                            <option value="performance">성과순</option>
+                            <option value="velocity">폭발력순</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>구독자 수 범위</label>
+                    <div class="search-range-row">
+                        <select id="searchSubMin">
+                            <option value="0">최소 없음</option>
+                            <option value="1000">1천 이상</option>
+                            <option value="5000">5천 이상</option>
+                            <option value="10000">1만 이상</option>
+                            <option value="50000">5만 이상</option>
+                            <option value="100000">10만 이상</option>
+                            <option value="500000">50만 이상</option>
+                            <option value="1000000">100만 이상</option>
+                        </select>
+                        <span class="search-range-sep">~</span>
+                        <select id="searchSubMax">
+                            <option value="0">최대 없음</option>
+                            <option value="1000">1천 이하</option>
+                            <option value="5000">5천 이하</option>
+                            <option value="10000">1만 이하</option>
+                            <option value="50000">5만 이하</option>
+                            <option value="100000">10만 이하</option>
+                            <option value="500000">50만 이하</option>
+                            <option value="1000000">100만 이하</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="searchResetBtn">초기화</button>
+                <button class="btn btn-primary" id="searchSubmitBtn">검색</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Channel Search -->
+    <div class="modal-overlay" id="channelSearchModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>채널 검색</h3>
+                <button class="modal-close" id="closeChannelSearchModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>채널 키워드</label>
+                    <input type="text" id="channelSearchKeyword" placeholder="채널명 또는 키워드를 입력하세요">
+                </div>
+                <div class="form-group">
+                    <label>구독자 수 범위</label>
+                    <div class="search-range-row">
+                        <select id="channelSubMin">
+                            <option value="0">최소 없음</option>
+                            <option value="100">100 이상</option>
+                            <option value="1000">1천 이상</option>
+                            <option value="5000">5천 이상</option>
+                            <option value="10000">1만 이상</option>
+                            <option value="50000">5만 이상</option>
+                            <option value="100000">10만 이상</option>
+                            <option value="1000000">100만 이상</option>
+                        </select>
+                        <span class="search-range-sep">~</span>
+                        <select id="channelSubMax">
+                            <option value="0">최대 없음</option>
+                            <option value="1000">1천 이하</option>
+                            <option value="5000">5천 이하</option>
+                            <option value="10000">1만 이하</option>
+                            <option value="50000">5만 이하</option>
+                            <option value="100000">10만 이하</option>
+                            <option value="500000">50만 이하</option>
+                            <option value="1000000">100만 이하</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="channelSearchResetBtn">초기화</button>
+                <button class="btn btn-primary" id="channelSearchSubmitBtn">검색</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Ref Folder Select -->
+    <div class="modal-overlay" id="refFolderModal">
+        <div class="modal" style="width:400px">
+            <div class="modal-header">
+                <h3>폴더 선택</h3>
+                <button class="modal-close" id="closeRefFolderModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="ref-folder-list" id="refFolderList">
+                    <!-- 미분류 + 사용자 폴더 목록 (JS 동적) -->
+                </div>
+                <div class="ref-folder-create-row">
+                    <input type="text" id="refFolderNewName" placeholder="새 폴더 이름" maxlength="30">
+                    <button class="btn btn-secondary btn-sm" id="refFolderCreateBtn">추가</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="refFolderModalCancel">취소</button>
+                <button class="btn btn-primary" id="refFolderModalSave">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folder Context Menu -->
+    <div class="ref-folder-ctx" id="refFolderCtx" style="display:none">
+        <div class="ref-folder-ctx-item" data-action="rename">이름 변경</div>
+        <div class="ref-folder-ctx-item danger" data-action="delete">삭제</div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
