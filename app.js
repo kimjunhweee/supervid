@@ -973,6 +973,24 @@ function openEditContent(id) {
     document.getElementById('contentScriptStatus').value = content.scriptStatus || '';
     document.getElementById('contentScriptContent').value = content.scriptContent || '';
     document.getElementById('deleteContentBtn').style.display = 'block';
+
+    // Thumbnail summary
+    const thumbSection = document.getElementById('contentThumbSection');
+    const thumbSummary = document.getElementById('contentThumbSummary');
+    if (content.thumbnailText || content.thumbnailMemo) {
+        const styleLabels = { 'bold-white': '굵은 흰색', 'yellow-highlight': '노란 강조', 'red-bg': '빨간 배경', 'outline': '아웃라인', 'gradient': '그라디언트' };
+        const bgLabels = { 'closeup': '인물 클로즈업', 'before-after': '비포/애프터', 'product': '음식/제품', 'reaction': '반응샷', 'text-only': '텍스트 중심', 'custom': '기타' };
+        let html = '';
+        if (content.thumbnailText) html += `<div><strong>텍스트:</strong> ${escapeHtml(content.thumbnailText)}</div>`;
+        if (content.thumbnailStyle) html += `<div><strong>스타일:</strong> ${escapeHtml(styleLabels[content.thumbnailStyle] || content.thumbnailStyle)}</div>`;
+        if (content.thumbnailBg) html += `<div><strong>배경:</strong> ${escapeHtml(bgLabels[content.thumbnailBg] || content.thumbnailBg)}</div>`;
+        if (content.thumbnailMemo) html += `<div><strong>메모:</strong> ${escapeHtml(content.thumbnailMemo)}</div>`;
+        thumbSummary.innerHTML = html;
+        thumbSection.style.display = '';
+    } else {
+        thumbSection.style.display = 'none';
+    }
+
     loadChecklist(content.checklist);
     updateWordCount();
     resetModalTabs();
@@ -2255,7 +2273,7 @@ function velocityBadgeHtml(video) {
 }
 
 // ===== New Content Wizard =====
-const NC_TOTAL_STEPS = 5;
+const NC_TOTAL_STEPS = 6;
 let _ncCurrentStep = 0;
 let _ncIdeaText = '';
 let _ncSelectedRefs = [];
@@ -2272,6 +2290,22 @@ function setupNewContentPage() {
             grid.querySelectorAll('.nc-option-card').forEach(c => c.classList.remove('active'));
             card.classList.add('active');
             card.querySelector('input[type="radio"]').checked = true;
+        });
+    });
+
+    // Thumbnail style card selection
+    document.querySelectorAll('#ncThumbStyleGrid .nc-thumb-style-card').forEach(card => {
+        card.addEventListener('click', () => {
+            document.querySelectorAll('#ncThumbStyleGrid .nc-thumb-style-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+        });
+    });
+
+    // Thumbnail background card selection
+    document.querySelectorAll('#ncThumbBgGrid .nc-thumb-bg-card').forEach(card => {
+        card.addEventListener('click', () => {
+            document.querySelectorAll('#ncThumbBgGrid .nc-thumb-bg-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
         });
     });
 
@@ -2318,6 +2352,15 @@ function openAddContent(date) {
     document.getElementById('ncRefLoading').style.display = 'none';
     document.getElementById('ncTitlePatterns').innerHTML = '';
     document.getElementById('ncKeywordChips').innerHTML = '';
+
+    // Reset thumbnail fields
+    document.getElementById('ncThumbText').value = '';
+    document.getElementById('ncThumbMemo').value = '';
+    document.getElementById('ncThumbGrid').innerHTML = '';
+    document.querySelectorAll('#ncThumbStyleGrid .nc-thumb-style-card').forEach(c => c.classList.remove('active'));
+    document.querySelector('#ncThumbStyleGrid .nc-thumb-style-card[data-value="bold-white"]').classList.add('active');
+    document.querySelectorAll('#ncThumbBgGrid .nc-thumb-bg-card').forEach(c => c.classList.remove('active'));
+    document.querySelector('#ncThumbBgGrid .nc-thumb-bg-card[data-value="closeup"]').classList.add('active');
 
     // Reset platform selection to youtube
     document.querySelectorAll('#ncPlatformGrid .nc-option-card').forEach(c => c.classList.remove('active'));
@@ -2398,7 +2441,11 @@ function ncRenderStep() {
         ncRenderTitlePatterns();
         setTimeout(() => titleInput.focus(), 100);
     }
-    if (_ncCurrentStep === 4) {
+    if (_ncCurrentStep === 3) {
+        // Render thumbnail comparison grid
+        ncRenderThumbnailStep();
+    }
+    if (_ncCurrentStep === 5) {
         // Update review card
         ncUpdateReviewCard();
     }
@@ -2564,6 +2611,61 @@ function ncExtractKeywords(titles) {
         .map(([word]) => word);
 }
 
+function ncRenderThumbnailStep() {
+    const gridEl = document.getElementById('ncThumbGrid');
+    const videos = _ncSelectedRefs.length > 0 ? _ncSelectedRefs : _ncLastSearchResults;
+
+    if (!videos || videos.length === 0) {
+        gridEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px">레퍼런스 영상이 없습니다. 이전 단계에서 영상을 검색해보세요.</div>';
+        return;
+    }
+
+    gridEl.innerHTML = videos.slice(0, 6).map((v, i) => `
+        <div class="nc-thumb-card" data-idx="${i}">
+            <div class="nc-thumb-img-wrap">
+                <img class="nc-thumb-img" src="${v.thumbnail}" alt="" loading="lazy">
+                <div class="nc-thumb-zoom-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                </div>
+            </div>
+            <div class="nc-thumb-card-title">${escapeHtml(v.title)}</div>
+            <div class="nc-thumb-card-meta">조회수 ${formatNumber(v.viewCount)}</div>
+        </div>
+    `).join('');
+
+    gridEl.querySelectorAll('.nc-thumb-card').forEach(card => {
+        card.addEventListener('click', () => {
+            const idx = parseInt(card.dataset.idx);
+            ncRenderThumbPreview(videos[idx]);
+        });
+    });
+}
+
+function ncRenderThumbPreview(video) {
+    // Remove existing overlay if any
+    const existing = document.querySelector('.nc-thumb-enlarged');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'nc-thumb-enlarged';
+    overlay.innerHTML = `
+        <div class="nc-thumb-enlarged-inner">
+            <img src="${video.thumbnail.replace('mqdefault', 'maxresdefault').replace('hqdefault', 'maxresdefault')}" alt="">
+            <div class="nc-thumb-enlarged-info">
+                <div class="nc-thumb-enlarged-title">${escapeHtml(video.title)}</div>
+                <div class="nc-thumb-enlarged-meta">${escapeHtml(video.channelTitle || '')} · 조회수 ${formatNumber(video.viewCount)}</div>
+            </div>
+            <button class="nc-thumb-enlarged-close">&times;</button>
+        </div>
+    `;
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay || e.target.closest('.nc-thumb-enlarged-close')) {
+            overlay.remove();
+        }
+    });
+    document.body.appendChild(overlay);
+}
+
 function ncUpdateReviewCard() {
     const title = document.getElementById('ncTitle').value.trim();
     const platform = document.querySelector('input[name="ncPlatform"]:checked')?.value || 'youtube';
@@ -2578,6 +2680,15 @@ function ncUpdateReviewCard() {
     document.getElementById('ncReviewRefs').textContent = _ncSelectedRefs.length > 0
         ? _ncSelectedRefs.length + '개 선택됨'
         : '없음';
+
+    // Thumbnail summary
+    const thumbText = document.getElementById('ncThumbText').value.trim();
+    const thumbStyle = document.querySelector('#ncThumbStyleGrid .nc-thumb-style-card.active')?.dataset.value || '';
+    const styleLabels = { 'bold-white': '굵은 흰색', 'yellow-highlight': '노란 강조', 'red-bg': '빨간 배경', 'outline': '아웃라인', 'gradient': '그라디언트' };
+    const thumbParts = [];
+    if (thumbText) thumbParts.push(`"${thumbText}"`);
+    if (thumbStyle) thumbParts.push(styleLabels[thumbStyle] || thumbStyle);
+    document.getElementById('ncReviewThumb').textContent = thumbParts.length > 0 ? thumbParts.join(' · ') : '미설정';
 }
 
 function ncSave() {
@@ -2595,6 +2706,11 @@ function ncSave() {
         memo = memo ? memo + refSection : refSection.trim();
     }
 
+    const thumbnailText = document.getElementById('ncThumbText').value.trim();
+    const thumbnailStyle = document.querySelector('#ncThumbStyleGrid .nc-thumb-style-card.active')?.dataset.value || 'bold-white';
+    const thumbnailBg = document.querySelector('#ncThumbBgGrid .nc-thumb-bg-card.active')?.dataset.value || 'closeup';
+    const thumbnailMemo = document.getElementById('ncThumbMemo').value.trim();
+
     const data = {
         id: generateId(),
         title,
@@ -2604,6 +2720,10 @@ function ncSave() {
         contentType,
         ideaText: _ncIdeaText,
         memo,
+        thumbnailText,
+        thumbnailStyle,
+        thumbnailBg,
+        thumbnailMemo,
         scriptContent: '',
         scriptStatus: null,
         checklist: {},
