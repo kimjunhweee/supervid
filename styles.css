@@ -414,22 +414,22 @@ body {
     display: flex; align-items: center; justify-content: center; transition: all var(--transition);
 }
 .cal-nav-btn:hover { background: var(--bg-hover); }
-.calendar-grid {
-    display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
-    background: var(--border); border-radius: var(--radius) var(--radius) 0 0; overflow: hidden;
+.calendar-wrap {
+    display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px;
+    background: var(--border); border-radius: var(--radius); overflow: hidden;
+}
+.calendar-grid, .calendar-days {
+    display: contents;
 }
 .cal-day-header {
     background: var(--bg-card); padding: 10px; text-align: center;
     font-size: 12px; font-weight: 500; color: var(--text-muted); text-transform: uppercase;
     letter-spacing: 0.05em;
 }
-.calendar-days {
-    display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
-    background: var(--border); border-radius: 0 0 var(--radius) var(--radius); overflow: hidden;
-}
 .cal-day {
     background: var(--bg-card); min-height: 100px; padding: 8px;
     cursor: pointer; transition: background var(--transition);
+    overflow: hidden; min-width: 0;
 }
 .cal-day:hover { background: var(--bg-hover); }
 .cal-day.other-month { opacity: 0.3; }
@@ -1832,4 +1832,5 @@ body.sidebar-collapsed .main-content { margin: var(--inset-gap) var(--inset-gap)
     .nc-ref-select-btn { align-self: flex-end; margin-top: -32px; }
     .nc-option-grid { grid-template-columns: repeat(3, 1fr); }
     .nc-settings-section .nc-option-card { padding: 10px 6px; }
+
 }
