@@ -630,7 +630,7 @@ body {
     display: inline-flex; align-items: center; gap: 6px;
 }
 .btn-sm { padding: 5px 10px; font-size: 12px; }
-.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary { background: var(--accent); color: #fff; font-weight: 600; }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
 .btn-secondary:hover { background: var(--bg-hover); color: var(--text-primary); }
