@@ -229,7 +229,8 @@ app.get('/api/youtube/videos', requireAuth, async (req, res) => {
             publishedAt: v.snippet.publishedAt,
             viewCount: parseInt(v.statistics.viewCount || 0),
             likeCount: parseInt(v.statistics.likeCount || 0),
-            commentCount: parseInt(v.statistics.commentCount || 0)
+            commentCount: parseInt(v.statistics.commentCount || 0),
+            duration: v.contentDetails ? v.contentDetails.duration : null
         }));
 
         res.json(videos);

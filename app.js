@@ -100,6 +100,8 @@ function initApp() {
         setupOutlierFinder();
         setupNewContentPage();
         setupChart();
+        setupUploadGoal();
+        setupGoalModal();
         updateTodayDate();
         _appInitialized = true;
     }
@@ -275,7 +277,7 @@ function toggleSidebar(silent) {
 
 // ===== Navigation =====
 const NAV_TITLES = {
-    dashboard: { title: '대시보드', desc: '콘텐츠 현황을 한눈에 확인하세요' },
+    dashboard: { title: '홈', desc: '콘텐츠 현황을 한눈에 확인하세요' },
     kanban: { title: '콘텐츠 관리', desc: '콘텐츠 진행 상태를 한눈에 관리하세요' },
     calendar: { title: '캘린더', desc: '콘텐츠 일정을 관리하세요' },
     discover: { title: '콘텐츠 탐색', desc: '키워드로 인기 영상을 검색하고 레퍼런스를 찾아보세요' },
@@ -287,6 +289,8 @@ const NAV_TITLES = {
     newcontent: { title: '새 콘텐츠', desc: '새로운 콘텐츠를 등록하세요' }
 };
 
+const LAB_TABS = ['discover', 'channels', 'references', 'ideas', 'addetect', 'outliers'];
+
 function switchTab(tab) {
     document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
     const target = document.querySelector(`.menu-item[data-tab="${tab}"]`);
@@ -297,6 +301,16 @@ function switchTab(tab) {
     document.getElementById('pageTitle').textContent = info.title;
     document.getElementById('pageDesc').textContent = info.desc;
     state.currentTab = tab;
+    // Auto-open lab submenu when switching to a lab tab
+    if (LAB_TABS.includes(tab)) {
+        const toggle = document.getElementById('labToggle');
+        const submenu = document.getElementById('labSubmenu');
+        if (toggle && submenu) {
+            toggle.classList.add('open');
+            submenu.classList.add('open');
+            localStorage.setItem('creatorhub_lab_open', 'true');
+        }
+    }
     if (tab === 'dashboard') renderDashboard();
     if (tab === 'kanban') renderKanban();
     if (tab === 'references') renderReferences();
@@ -304,10 +318,26 @@ function switchTab(tab) {
 }
 
 function setupNavigation() {
-    document.querySelectorAll('.menu-item').forEach(item => {
+    document.querySelectorAll('.menu-item[data-tab]').forEach(item => {
         item.addEventListener('click', () => switchTab(item.dataset.tab));
     });
     document.querySelector('.sidebar-logo').addEventListener('click', () => switchTab('dashboard'));
+
+    // Lab toggle
+    const labToggle = document.getElementById('labToggle');
+    const labSubmenu = document.getElementById('labSubmenu');
+    if (labToggle && labSubmenu) {
+        // Restore saved state
+        if (localStorage.getItem('creatorhub_lab_open') === 'true') {
+            labToggle.classList.add('open');
+            labSubmenu.classList.add('open');
+        }
+        labToggle.addEventListener('click', () => {
+            const isOpen = labToggle.classList.toggle('open');
+            labSubmenu.classList.toggle('open');
+            localStorage.setItem('creatorhub_lab_open', isOpen ? 'true' : 'false');
+        });
+    }
 }
 
 function updateTodayDate() {
@@ -336,69 +366,67 @@ function getChecklistCount(checklist) {
 }
 
 // ===== Dashboard =====
+const WELCOME_MESSAGES = [
+    '오늘도 한 편의 콘텐츠가 시작됩니다',
+    '꾸준히 올리는 것만으로도 대단해요',
+    '오늘의 아이디어, 놓치지 마세요',
+    '시청자들이 기다리고 있어요',
+    '작은 시작이 큰 채널을 만듭니다',
+    '콘텐츠는 양이 질을 만듭니다',
+    '오늘 하루도 크리에이터답게',
+    '한 편 더, 한 걸음 더',
+    '오늘도 한 편, 내일의 나를 만듭니다',
+    '업로드 버튼이 가장 강력한 무기예요',
+    '완벽하지 않아도 괜찮아요, 일단 올려보세요',
+    '1편의 차이가 1년 뒤를 바꿉니다',
+    '안 올리는 날이 가장 아까운 날이에요',
+    '어제보다 한 발짝 더 나아갔어요',
+    '지금 이 순간에도 채널은 자라고 있어요',
+    '조회수는 거짓말을 하지 않아요',
+    '구독자 한 명 한 명이 모여 큰 힘이 됩니다',
+    '당신의 콘텐츠를 기다리는 사람이 있어요',
+    '오늘의 아이디어, 놓치기 전에 메모하세요',
+    '일상 속에 콘텐츠 소재가 숨어 있어요',
+    '좋은 콘텐츠는 좋은 질문에서 시작돼요',
+    '트렌드를 읽되, 나만의 색을 담으세요',
+    '레퍼런스 하나가 기획의 방향을 바꿔요',
+    '오늘도 썸네일 장인의 하루가 시작됩니다',
+    '알고리즘이 당신 편이 되는 날이 올 거예요',
+    '카메라 앞에 서는 용기, 그게 시작이에요',
+    '편집은 내일의 나에게 맡기고, 일단 찍으세요',
+    '촬영 5분, 편집 5시간... 그래도 해내는 당신',
+];
+
+function updateWelcomeGreeting() {
+    const titleEl = document.getElementById('welcomeTitle');
+    const msgEl = document.getElementById('welcomeMessage');
+    if (!titleEl || !msgEl) return;
+
+    const hour = new Date().getHours();
+    let greeting;
+    if (hour >= 5 && hour < 12) greeting = '좋은 아침입니다';
+    else if (hour >= 12 && hour < 18) greeting = '좋은 오후입니다';
+    else if (hour >= 18 && hour < 23) greeting = '좋은 저녁입니다';
+    else greeting = '늦은 밤이에요';
+
+    const name = (state.user && state.user.name) ? state.user.name : '크리에이터';
+    titleEl.textContent = `${greeting}, ${name}님`;
+    msgEl.textContent = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)];
+
+    const ctaBtn = document.getElementById('welcomeNewContent');
+    if (ctaBtn && !ctaBtn._bound) {
+        ctaBtn.addEventListener('click', () => switchTab('newcontent'));
+        ctaBtn._bound = true;
+    }
+    const lastUploadBtn = document.getElementById('lastUploadNewBtn');
+    if (lastUploadBtn && !lastUploadBtn._bound) {
+        lastUploadBtn.addEventListener('click', () => switchTab('newcontent'));
+        lastUploadBtn._bound = true;
+    }
+}
+
 function renderDashboard() {
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
-
-    // This week's todos
-    const dayOfWeek = now.getDay();
-    const weekStart = new Date(now); weekStart.setDate(now.getDate() - dayOfWeek);
-    const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
-    const weekStartStr = weekStart.toISOString().slice(0, 10);
-    const weekEndStr = weekEnd.toISOString().slice(0, 10);
-
-    const weeklyContents = state.contents
-        .filter(c => c.status !== 'published' && c.date >= weekStartStr && c.date <= weekEndStr)
-        .sort((a, b) => a.date.localeCompare(b.date));
-
-    const weeklyEl = document.getElementById('weeklyTodos');
-    if (weeklyContents.length === 0) {
-        weeklyEl.innerHTML = '<p class="empty-state">이번 주 예정된 콘텐츠가 없습니다</p>';
-    } else {
-        weeklyEl.innerHTML = weeklyContents.map(c => {
-            const cl = getChecklistCount(c.checklist);
-            const overdue = c.date < todayStr ? ' style="color:var(--red)"' : '';
-            return `
-            <div class="upcoming-item" data-id="${c.id}" style="cursor:pointer">
-                <div class="upcoming-item-left">
-                    <span class="platform-badge ${c.platform}">${c.platform}</span>
-                    <span class="upcoming-item-title">${escapeHtml(c.title)}</span>
-                    ${c.contentType ? `<span class="type-badge">${typeLabels[c.contentType] || ''}</span>` : ''}
-                </div>
-                <div class="upcoming-item-right">
-                    <span class="status-badge ${c.status}">${statusLabels[c.status]}</span>
-                    <span class="upcoming-item-date"${overdue}>${formatDate(c.date)}</span>
-                    <span style="font-size:11px;color:var(--text-muted)">${cl.done}/${cl.total}</span>
-                </div>
-            </div>`;
-        }).join('');
-        weeklyEl.querySelectorAll('.upcoming-item').forEach(el => {
-            el.addEventListener('click', () => openEditContent(el.dataset.id));
-        });
-    }
-
-    // 스크립트 현황 — contents with scriptContent
-    const withScript = state.contents
-        .filter(c => c.scriptContent)
-        .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
-        .slice(0, 5);
-    const recentEl = document.getElementById('recentScripts');
-    if (withScript.length === 0) {
-        recentEl.innerHTML = '<p class="empty-state">작성된 스크립트가 없습니다</p>';
-    } else {
-        recentEl.innerHTML = withScript.map(c => `
-            <div class="recent-item" data-id="${c.id}" style="cursor:pointer">
-                <div class="recent-item-left">
-                    <span class="platform-badge ${c.platform}">${c.platform}</span>
-                    <span class="recent-item-title">${escapeHtml(c.title)}</span>
-                </div>
-                <span class="script-status ${c.scriptStatus || 'draft'}">${scriptStatusLabels[c.scriptStatus] || '초안'}</span>
-            </div>`).join('');
-        recentEl.querySelectorAll('.recent-item').forEach(el => {
-            el.addEventListener('click', () => openEditContent(el.dataset.id));
-        });
-    }
-
+    updateWelcomeGreeting();
     renderChart();
 }
 
@@ -429,7 +457,23 @@ function getWeeklyData(monthsBack) {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth() - monthsBack, now.getDate());
     start.setDate(start.getDate() - start.getDay()); // align to Sunday
+    const startStr = start.toISOString().slice(0, 10);
+
+    // Count all uploads before the chart range as the baseline
+    let baseLong = 0, baseShort = 0;
+    state.ytVideos.forEach(v => {
+        const d = v.publishedAt ? v.publishedAt.slice(0, 10) : '';
+        if (d < startStr) {
+            const sec = parseDurationToSeconds(v.duration);
+            if (sec > 0 && sec <= 60) baseShort++; else baseLong++;
+        }
+    });
+    state.contents.filter(c => c.status === 'published' && c.date < startStr).forEach(c => {
+        if (c.contentType === 'short') baseShort++; else baseLong++;
+    });
+
     const weeks = [];
+    let cumLong = baseLong, cumShort = baseShort;
     const cur = new Date(start);
     while (cur <= now) {
         const weekStart = new Date(cur);
@@ -438,20 +482,20 @@ function getWeeklyData(monthsBack) {
         const wsStr = weekStart.toISOString().slice(0, 10);
         const weStr = weekEnd.toISOString().slice(0, 10);
 
-        const publishedContents = state.contents.filter(c =>
-            c.status === 'published' && c.date >= wsStr && c.date <= weStr
-        ).length;
-        const ytPublished = state.ytVideos.filter(v => {
+        // YouTube videos this week
+        state.ytVideos.forEach(v => {
             const d = v.publishedAt ? v.publishedAt.slice(0, 10) : '';
-            return d >= wsStr && d <= weStr;
-        }).length;
-        const published = publishedContents + ytPublished;
-        const inProgress = state.contents.filter(c =>
-            ['scripting', 'filming', 'editing', 'scheduled'].includes(c.status) &&
-            c.date >= wsStr && c.date <= weStr
-        ).length;
+            if (d >= wsStr && d <= weStr) {
+                const sec = parseDurationToSeconds(v.duration);
+                if (sec > 0 && sec <= 60) cumShort++; else cumLong++;
+            }
+        });
+        // App-published contents this week
+        state.contents.filter(c => c.status === 'published' && c.date >= wsStr && c.date <= weStr).forEach(c => {
+            if (c.contentType === 'short') cumShort++; else cumLong++;
+        });
 
-        weeks.push({ weekStart, weekEnd, published, inProgress, label: `${weekStart.getMonth() + 1}/${weekStart.getDate()}` });
+        weeks.push({ weekStart, weekEnd, longForm: cumLong, shortForm: cumShort, label: `${weekStart.getMonth() + 1}/${weekStart.getDate()}` });
         cur.setDate(cur.getDate() + 7);
     }
     return weeks;
@@ -480,7 +524,14 @@ function drawSmoothLine(ctx, points) {
     if (points.length < 2) return;
     ctx.moveTo(points[0].x, points[0].y);
     const segs = catmullRomToBezier(points);
-    segs.forEach(s => ctx.bezierCurveTo(s.cp1x, s.cp1y, s.cp2x, s.cp2y, s.x, s.y));
+    segs.forEach((s, i) => {
+        // Clamp control points so curve never goes above previous or below next point (y is inverted)
+        const yTop = Math.min(points[i].y, points[i + 1].y);
+        const yBot = Math.max(points[i].y, points[i + 1].y);
+        const cp1y = Math.max(Math.min(s.cp1y, yBot), yTop);
+        const cp2y = Math.max(Math.min(s.cp2y, yBot), yTop);
+        ctx.bezierCurveTo(s.cp1x, cp1y, s.cp2x, cp2y, s.x, s.y);
+    });
 }
 
 function renderChart() {
@@ -517,7 +568,7 @@ function renderChart() {
     const chartW = w - padding.left - padding.right;
     const chartH = h - padding.top - padding.bottom;
 
-    const allVals = weeks.flatMap(w => [w.published, w.inProgress]);
+    const allVals = weeks.flatMap(w => [w.longForm, w.shortForm]);
     const maxData = Math.max(...allVals, 1);
     const gridStep = Math.ceil(maxData / 4) || 1;
     const maxVal = gridStep * 4;
@@ -525,11 +576,11 @@ function renderChart() {
     const gap = weeks.length > 1 ? chartW / (weeks.length - 1) : chartW;
     const pts1 = weeks.map((wk, i) => ({
         x: padding.left + (weeks.length > 1 ? gap * i : chartW / 2),
-        y: padding.top + chartH - (wk.published / maxVal) * chartH
+        y: padding.top + chartH - (wk.longForm / maxVal) * chartH
     }));
     const pts2 = weeks.map((wk, i) => ({
         x: padding.left + (weeks.length > 1 ? gap * i : chartW / 2),
-        y: padding.top + chartH - (wk.inProgress / maxVal) * chartH
+        y: padding.top + chartH - (wk.shortForm / maxVal) * chartH
     }));
 
     _chartState = { weeks, pts1, pts2, padding, chartW, chartH, maxVal, color1, color2, w, h, isDark };
@@ -641,13 +692,13 @@ function renderChart() {
             <div class="chart-tooltip-title">${wk.label} ~ ${endLabel}</div>
             <div class="chart-tooltip-row">
                 <span class="chart-tooltip-dot" style="background:${color1}"></span>
-                <span class="chart-tooltip-label">게시완료</span>
-                <span class="chart-tooltip-value">${wk.published}</span>
+                <span class="chart-tooltip-label">롱폼</span>
+                <span class="chart-tooltip-value">${wk.longForm}편</span>
             </div>
             <div class="chart-tooltip-row">
                 <span class="chart-tooltip-dot" style="background:${color2}"></span>
-                <span class="chart-tooltip-label">진행중</span>
-                <span class="chart-tooltip-value">${wk.inProgress}</span>
+                <span class="chart-tooltip-label">숏폼</span>
+                <span class="chart-tooltip-value">${wk.shortForm}편</span>
             </div>`;
         tooltip.style.display = 'block';
 
@@ -1221,6 +1272,8 @@ async function loadYouTubeData() {
             state.ytVideos = videos;
             renderYouTubeVideos(videos);
             renderChart();
+            updateUploadGoal();
+            updateLastUploadBanner();
         }
 
         toast(`"${channel.title}" 채널 데이터를 불러왔습니다`);
@@ -1279,12 +1332,164 @@ function updateMyChannelHero(channel) {
         document.getElementById('myChViewsMin').textContent = formatMilestone(viewMs.min);
         document.getElementById('myChViewsMax').textContent = formatMilestone(viewMs.max);
 
+        const videos = channel.videoCount || 0;
+        document.getElementById('myChVideoCount').textContent = videos.toLocaleString();
+        const videoMs = calcMilestone(videos);
+        document.getElementById('myChVideosProgress').style.width = videoMs.pct + '%';
+        document.getElementById('myChVideosMin').textContent = formatMilestone(videoMs.min);
+        document.getElementById('myChVideosMax').textContent = formatMilestone(videoMs.max);
+
+        updateUploadGoal();
+
         statsEl.style.display = '';
         emptyEl.style.display = 'none';
     } else {
         statsEl.style.display = 'none';
         emptyEl.style.display = '';
     }
+}
+
+// ===== Upload Goal =====
+function getUploadGoal() {
+    return parseInt(localStorage.getItem('creatorhub_upload_goal')) || 4;
+}
+
+function getWeeklyGoal() {
+    return parseInt(localStorage.getItem('creatorhub_weekly_goal')) || 1;
+}
+
+function countMonthUploads() {
+    if (!state.ytVideos || !state.ytVideos.length) return 0;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    return state.ytVideos.filter(v => {
+        const d = new Date(v.publishedAt);
+        return d.getFullYear() === year && d.getMonth() === month;
+    }).length;
+}
+
+function countWeekUploads() {
+    if (!state.ytVideos || !state.ytVideos.length) return 0;
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - day);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    return state.ytVideos.filter(v => {
+        const d = new Date(v.publishedAt);
+        return d >= weekStart && d < weekEnd;
+    }).length;
+}
+
+function updateUploadGoal() {
+    const goal = getUploadGoal();
+    const uploads = countMonthUploads();
+    const pct = goal > 0 ? Math.min(Math.round((uploads / goal) * 100), 100) : 0;
+
+    const currentEl = document.getElementById('myChMonthUploads');
+    const goalEl = document.getElementById('myChMonthGoal');
+    const progressEl = document.getElementById('myChGoalProgress');
+    const pctEl = document.getElementById('myChGoalPct');
+    if (currentEl) currentEl.textContent = uploads;
+    if (goalEl) goalEl.textContent = goal;
+    if (progressEl) {
+        progressEl.style.width = pct + '%';
+        progressEl.classList.toggle('complete', pct >= 100);
+    }
+    if (pctEl) pctEl.textContent = pct + '%';
+
+    // Weekly
+    const weeklyGoal = getWeeklyGoal();
+    const weekUploads = countWeekUploads();
+    const weekUploadsEl = document.getElementById('myChWeekUploads');
+    const weekGoalEl = document.getElementById('myChWeekGoal');
+    if (weekUploadsEl) weekUploadsEl.textContent = weekUploads;
+    if (weekGoalEl) weekGoalEl.textContent = weeklyGoal;
+}
+
+function setupUploadGoal() {
+    const btn = document.getElementById('uploadGoalEditBtn');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        openGoalModal();
+    });
+}
+
+function setupGoalModal() {
+    const overlay = document.getElementById('goalModal');
+    const closeBtn = document.getElementById('closeGoalModal');
+    const saveBtn = document.getElementById('saveGoalBtn');
+    if (!overlay) return;
+
+    closeBtn.addEventListener('click', () => overlay.classList.remove('active'));
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) overlay.classList.remove('active');
+    });
+    saveBtn.addEventListener('click', saveGoalSettings);
+}
+
+function openGoalModal() {
+    const overlay = document.getElementById('goalModal');
+    const monthlyInput = document.getElementById('goalMonthlyInput');
+    const weeklyInput = document.getElementById('goalWeeklyInput');
+    const monthlyCurrent = document.getElementById('goalMonthlyCurrent');
+    const weeklyCurrent = document.getElementById('goalWeeklyCurrent');
+
+    monthlyInput.value = getUploadGoal();
+    weeklyInput.value = getWeeklyGoal();
+    monthlyCurrent.textContent = `이번 달 ${countMonthUploads()}편 업로드`;
+    weeklyCurrent.textContent = `이번 주 ${countWeekUploads()}편 업로드`;
+
+    overlay.classList.add('active');
+}
+
+function saveGoalSettings() {
+    const monthlyVal = parseInt(document.getElementById('goalMonthlyInput').value);
+    const weeklyVal = parseInt(document.getElementById('goalWeeklyInput').value);
+
+    if (!monthlyVal || monthlyVal < 1 || monthlyVal > 100) {
+        toast('월간 목표는 1~100 사이 숫자를 입력하세요');
+        return;
+    }
+    if (!weeklyVal || weeklyVal < 1 || weeklyVal > 30) {
+        toast('주간 목표는 1~30 사이 숫자를 입력하세요');
+        return;
+    }
+
+    localStorage.setItem('creatorhub_upload_goal', monthlyVal);
+    localStorage.setItem('creatorhub_weekly_goal', weeklyVal);
+    updateUploadGoal();
+    document.getElementById('goalModal').classList.remove('active');
+    toast(`목표가 설정되었습니다 (월 ${monthlyVal}편, 주 ${weeklyVal}편)`);
+}
+
+// ===== Last Upload Banner =====
+function updateLastUploadBanner() {
+    const banner = document.getElementById('lastUploadBanner');
+    if (!banner) return;
+    if (!state.ytVideos || !state.ytVideos.length) { banner.style.display = 'none'; return; }
+
+    const sorted = state.ytVideos.slice().sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+    const lastDate = new Date(sorted[0].publishedAt);
+    const now = new Date();
+    // 날짜 단위로만 비교 (시간대 차이 무시)
+    const toDateOnly = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diffDays = Math.round((toDateOnly(now) - toDateOnly(lastDate)) / (1000 * 60 * 60 * 24));
+
+    document.getElementById('lastUploadDays').textContent = `마지막 업로드로부터 +${diffDays}일`;
+    const subEl = document.getElementById('lastUploadSub');
+    if (subEl) {
+        if (diffDays === 0) subEl.textContent = '오늘 업로드했어요! 좋은 흐름이에요';
+        else if (diffDays <= 3) subEl.textContent = '꾸준한 업로드가 성장의 핵심이에요';
+        else if (diffDays <= 7) subEl.textContent = '이번 주 안에 새 영상을 올려보세요';
+        else if (diffDays <= 14) subEl.textContent = '업로드 간격이 벌어지고 있어요';
+        else subEl.textContent = '오래 쉬었네요, 다시 시작해볼까요?';
+    }
+    banner.style.display = '';
+    banner.classList.toggle('warn', diffDays >= 14);
 }
 
 // ===== Discover (콘텐츠 탐색) =====
