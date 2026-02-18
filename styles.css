@@ -286,6 +286,70 @@ body {
 .my-channel-goal-row {
     display: grid; grid-template-columns: 1fr;
 }
+/* Goal Dashboard Grid */
+.goal-dashboard-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.goal-card {
+    background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center;
+    transition: all var(--transition);
+}
+.goal-card-header {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; margin-bottom: 10px; position: relative;
+}
+.goal-card-header .upload-goal-edit-btn {
+    position: absolute; right: 0; top: -4px;
+}
+.goal-card-label {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-muted);
+}
+.goal-ring-wrap {
+    position: relative; width: 80px; height: 80px;
+}
+.goal-ring-svg {
+    width: 80px; height: 80px; transform: rotate(-90deg);
+}
+.goal-ring-bg {
+    fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 5;
+}
+[data-theme="light"] .goal-ring-bg { stroke: rgba(0, 0, 0, 0.08); }
+.goal-ring-fill {
+    fill: none; stroke: var(--accent); stroke-width: 5;
+    stroke-linecap: round; transition: stroke-dashoffset 0.6s ease;
+}
+.goal-ring-fill-weekly { stroke: #a78bfa; }
+.goal-ring-text {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+}
+.goal-ring-current {
+    font-size: 22px; font-weight: 700; line-height: 1;
+}
+.goal-ring-target {
+    font-size: 12px; color: var(--text-muted); margin-top: 2px;
+}
+.goal-streak-body {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.goal-streak-icon { font-size: 24px; }
+.goal-streak-number { font-size: 28px; font-weight: 700; line-height: 1; }
+.goal-streak-unit { font-size: 13px; color: var(--text-secondary); }
+.goal-streak-best { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.goal-pace-body {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.goal-pace-info { font-size: 13px; color: var(--text-secondary); }
+.goal-pace-badge {
+    display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px;
+    border-radius: 20px; line-height: 1.4;
+}
+.goal-pace-badge.relaxed { background: rgba(34,197,94,0.15); color: #22c55e; }
+.goal-pace-badge.on-track { background: rgba(234,179,8,0.15); color: #eab308; }
+.goal-pace-badge.tight { background: rgba(239,68,68,0.15); color: #ef4444; }
+.goal-pace-badge.done { background: rgba(34,197,94,0.15); color: #22c55e; }
 .my-channel-stat-card {
     background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 28px 32px 20px; display: flex; flex-direction: column; align-items: center;
@@ -752,6 +816,20 @@ body {
 .mypage-row:last-child { border-bottom: none; }
 .mypage-label { font-size: 13px; color: var(--text-secondary); }
 .mypage-value { font-size: 13px; font-weight: 500; }
+
+/* Language Switcher */
+.lang-switcher { display: flex; gap: 4px; }
+.lang-btn {
+    padding: 4px 12px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: transparent; color: var(--text-secondary);
+    cursor: pointer; transition: all 0.15s;
+}
+.lang-btn:hover { background: var(--bg-hover); }
+.lang-btn.active {
+    background: var(--accent); color: #fff;
+    border-color: var(--accent);
+}
 
 /* API Usage in My Page */
 .mypage-usage-section { margin-top: 16px; }
@@ -2034,6 +2112,7 @@ body.sidebar-collapsed .main-content { margin: var(--inset-gap) var(--inset-gap)
     .my-channel-stat-label { margin-bottom: 8px; }
     .upload-goal-inline { flex-direction: column; gap: 12px; }
     .upload-goal-card { padding: 16px; }
+    .goal-dashboard-grid { grid-template-columns: 1fr; }
 
     /* Stats: single column */
     .stats-grid { grid-template-columns: 1fr; gap: 6px; }

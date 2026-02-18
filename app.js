@@ -12,12 +12,13 @@ const state = {
 };
 
 const STATUS_ORDER = ['idea', 'scripting', 'filming', 'editing', 'scheduled', 'published'];
-const statusLabels = {
-    idea: '아이디어', scripting: '스크립트 작성중', filming: '촬영중',
-    editing: '편집중', scheduled: '예약됨', published: '게시완료'
-};
-const scriptStatusLabels = { draft: '초안', writing: '작성중', done: '완료' };
-const typeLabels = { long: '롱폼', short: '숏츠', post: '포스트' };
+function getStatusLabel(s) { return t('status.' + s) || s; }
+function getScriptStatusLabel(s) { return s ? (t('scriptStatus.' + s) || s) : t('scriptStatus.none'); }
+function getTypeLabel(tp) { return t('type.' + tp) || tp; }
+// Legacy compat — some code may reference these directly
+const statusLabels = new Proxy({}, { get: (_, k) => getStatusLabel(k) });
+const scriptStatusLabels = new Proxy({}, { get: (_, k) => getScriptStatusLabel(k) });
+const typeLabels = new Proxy({}, { get: (_, k) => getTypeLabel(k) });
 
 // ===== Data Migration =====
 function migrateScriptsToContents() {
@@ -51,7 +52,7 @@ function migrateScriptsToContents() {
         if (!linkedScriptIds.has(s.id)) {
             state.contents.push({
                 id: generateId(),
-                title: s.title || '제목 없음',
+                title: s.title || t('misc.noTitle'),
                 platform: s.platform || 'youtube',
                 status: 'idea',
                 date: '',
@@ -102,7 +103,13 @@ function initApp() {
         setupChart();
         setupUploadGoal();
         setupGoalModal();
+        setupLangSwitcher();
         updateTodayDate();
+        applyI18nToDOM();
+        // 초기 로드 시 현재 탭 헤더 갱신
+        const info = getNavTitle(state.currentTab);
+        document.getElementById('pageTitle').textContent = info.title;
+        document.getElementById('pageDesc').textContent = info.desc;
         _appInitialized = true;
     }
     renderAll();
@@ -205,7 +212,7 @@ async function renderGoogleButton() {
         size: 'large',
         width: 280,
         text: 'signin_with',
-        locale: 'ko'
+        locale: getLang() === 'en' ? 'en' : 'ko'
     });
 }
 
@@ -220,13 +227,13 @@ async function handleGoogleLogin(response) {
             const data = await res.json();
             state.user = data.user;
             showApp();
-            toast(`${state.user.name}님, 환영합니다!`);
+            toast(t('login.welcome', { name: state.user.name }));
         } else {
             const err = await res.json();
-            toast('로그인 실패: ' + (err.error || '알 수 없는 오류'));
+            toast(t('login.fail', { error: err.error || t('login.failUnknown') }));
         }
     } catch {
-        toast('로그인 중 오류가 발생했습니다');
+        toast(t('login.error'));
     }
 }
 
@@ -236,7 +243,7 @@ async function logout() {
     } catch { /* ignore */ }
     state.user = null;
     showLogin();
-    toast('로그아웃 되었습니다');
+    toast(t('login.loggedOut'));
 }
 
 function renderAll() {
@@ -276,18 +283,15 @@ function toggleSidebar(silent) {
 }
 
 // ===== Navigation =====
-const NAV_TITLES = {
-    dashboard: { title: '홈', desc: '콘텐츠 현황을 한눈에 확인하세요' },
-    kanban: { title: '콘텐츠 관리', desc: '콘텐츠 진행 상태를 한눈에 관리하세요' },
-    calendar: { title: '캘린더', desc: '콘텐츠 일정을 관리하세요' },
-    discover: { title: '콘텐츠 탐색', desc: '키워드로 인기 영상을 검색하고 레퍼런스를 찾아보세요' },
-    channels: { title: '채널 탐색', desc: '유튜브 채널을 검색하고 분석하세요' },
-    references: { title: '레퍼런스', desc: '저장한 레퍼런스 영상을 관리하세요' },
-    ideas: { title: '아이디어 찾기', desc: '트렌드와 키워드 분석으로 콘텐츠 아이디어를 발굴하세요' },
-    addetect: { title: '광고 탐지', desc: '브랜드의 유튜브 광고 캠페인을 검색하고 협업 채널을 분석하세요' },
-    outliers: { title: '아웃라이어', desc: '채널 평균 대비 폭발적으로 성과가 좋은 영상을 발견하세요' },
-    newcontent: { title: '새 콘텐츠', desc: '새로운 콘텐츠를 등록하세요' }
-};
+function getNavTitle(tab) {
+    const map = {
+        dashboard: 'nav.home', kanban: 'nav.content', calendar: 'nav.calendar',
+        discover: 'nav.discover', channels: 'nav.channels', references: 'nav.references',
+        ideas: 'nav.ideas', addetect: 'nav.addetect', outliers: 'nav.outliers',
+        newcontent: 'header.newContent'
+    };
+    return { title: t(map[tab] || tab), desc: t('desc.' + tab) };
+}
 
 const LAB_TABS = ['discover', 'channels', 'references', 'ideas', 'addetect', 'outliers'];
 
@@ -297,7 +301,7 @@ function switchTab(tab) {
     if (target) target.classList.add('active');
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');
-    const info = NAV_TITLES[tab] || { title: tab, desc: '' };
+    const info = getNavTitle(tab);
     document.getElementById('pageTitle').textContent = info.title;
     document.getElementById('pageDesc').textContent = info.desc;
     state.currentTab = tab;
@@ -342,7 +346,8 @@ function setupNavigation() {
 
 function updateTodayDate() {
     const now = new Date();
-    document.getElementById('todayDate').textContent = now.toLocaleDateString('ko-KR', {
+    const locale = getLang() === 'en' ? 'en-US' : 'ko-KR';
+    document.getElementById('todayDate').textContent = now.toLocaleDateString(locale, {
         year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
     });
 }
@@ -366,81 +371,22 @@ function getChecklistCount(checklist) {
 }
 
 // ===== Dashboard =====
-const WELCOME_MESSAGES = [
-    '오늘도 한 편의 콘텐츠가 시작됩니다',
-    '꾸준히 올리는 것만으로도 대단해요',
-    '오늘의 아이디어, 놓치지 마세요',
-    '시청자들이 기다리고 있어요',
-    '작은 시작이 큰 채널을 만듭니다',
-    '콘텐츠는 양이 질을 만듭니다',
-    '오늘 하루도 크리에이터답게',
-    '한 편 더, 한 걸음 더',
-    '오늘도 한 편, 내일의 나를 만듭니다',
-    '업로드 버튼이 가장 강력한 무기예요',
-    '완벽하지 않아도 괜찮아요, 일단 올려보세요',
-    '1편의 차이가 1년 뒤를 바꿉니다',
-    '안 올리는 날이 가장 아까운 날이에요',
-    '어제보다 한 발짝 더 나아갔어요',
-    '지금 이 순간에도 채널은 자라고 있어요',
-    '조회수는 거짓말을 하지 않아요',
-    '구독자 한 명 한 명이 모여 큰 힘이 됩니다',
-    '당신의 콘텐츠를 기다리는 사람이 있어요',
-    '오늘의 아이디어, 놓치기 전에 메모하세요',
-    '일상 속에 콘텐츠 소재가 숨어 있어요',
-    '좋은 콘텐츠는 좋은 질문에서 시작돼요',
-    '트렌드를 읽되, 나만의 색을 담으세요',
-    '레퍼런스 하나가 기획의 방향을 바꿔요',
-    '오늘도 썸네일 장인의 하루가 시작됩니다',
-    '알고리즘이 당신 편이 되는 날이 올 거예요',
-    '카메라 앞에 서는 용기, 그게 시작이에요',
-    '편집은 내일의 나에게 맡기고, 일단 찍으세요',
-    '촬영 5분, 편집 5시간... 그래도 해내는 당신',
-    // 동기부여/응원
-    '멈추지 않는 한, 느려도 괜찮아요',
-    '지금 포기하면 어제의 노력이 아까워요',
-    '100번째 영상이 인생을 바꿀 수도 있어요',
-    '조회수 0에서 시작하지 않은 채널은 없어요',
-    '성장은 눈에 안 보일 뿐, 매일 일어나고 있어요',
-    '오늘의 1편이 내일의 100만 뷰가 됩니다',
-    '꺾이지 않는 마음, 그게 크리에이터의 자격이에요',
-    '당신이 만든 콘텐츠는 누군가의 하루를 바꿔요',
-    '구독자 수보다 중요한 건 계속하는 힘이에요',
-    '지금 이 고비를 넘기면 한 단계 성장해요',
-    // 유머/재치
-    '오늘도 유튜브 알고리즘과의 밀당 시작',
-    '썸네일 고르다 하루가 가는 건 비밀',
-    '편집하다 잠든 적 있다면 진짜 크리에이터',
-    '"이번 영상은 대박일 거야" (매번 하는 말)',
-    '구독자 1명 = 가족 1명이라고 생각하면 든든',
-    'BGM 고르다 새벽 3시... 크리에이터 맞죠?',
-    '오늘의 할 일: 촬영, 편집, 또 편집, 또또 편집',
-    '댓글 하나에 웃고 댓글 하나에 우는 하루',
-    // 실용 팁
-    '오늘은 숏츠 하나 도전해보는 건 어때요?',
-    '제목에 숫자를 넣으면 클릭률이 올라가요',
-    '첫 5초가 시청 지속률을 결정해요',
-    '업로드 전 썸네일을 3가지 버전으로 만들어보세요',
-    '트렌드 탭에서 오늘의 인기 주제를 확인해보세요',
-    '스크립트 없이 찍어도, 구조는 미리 잡아두세요',
-    '댓글 피드백은 다음 콘텐츠의 최고 소재예요',
-    '시리즈물은 구독 전환율이 높아요, 도전해보세요',
-];
-
 function updateWelcomeGreeting() {
     const titleEl = document.getElementById('welcomeTitle');
     const msgEl = document.getElementById('welcomeMessage');
     if (!titleEl || !msgEl) return;
 
     const hour = new Date().getHours();
-    let greeting;
-    if (hour >= 5 && hour < 12) greeting = '좋은 아침입니다';
-    else if (hour >= 12 && hour < 18) greeting = '좋은 오후입니다';
-    else if (hour >= 18 && hour < 23) greeting = '좋은 저녁입니다';
-    else greeting = '늦은 밤이에요';
+    let greetingKey;
+    if (hour >= 5 && hour < 12) greetingKey = 'greeting.morning';
+    else if (hour >= 12 && hour < 18) greetingKey = 'greeting.afternoon';
+    else if (hour >= 18 && hour < 23) greetingKey = 'greeting.evening';
+    else greetingKey = 'greeting.night';
 
-    const name = (state.user && state.user.name) ? state.user.name : '크리에이터';
-    titleEl.textContent = `${greeting}, ${name}님`;
-    msgEl.textContent = WELCOME_MESSAGES[Math.floor(Math.random() * WELCOME_MESSAGES.length)];
+    const name = (state.user && state.user.name) ? state.user.name : t('greeting.default');
+    titleEl.textContent = t('greeting.format', { greeting: t(greetingKey), name });
+    const msgs = getWelcomeMessages();
+    msgEl.textContent = msgs[Math.floor(Math.random() * msgs.length)];
 
     const ctaBtn = document.getElementById('welcomeNewContent');
     if (ctaBtn && !ctaBtn._bound) {
@@ -721,13 +667,13 @@ function renderChart() {
             <div class="chart-tooltip-title">${wk.label} ~ ${endLabel}</div>
             <div class="chart-tooltip-row">
                 <span class="chart-tooltip-dot" style="background:${color1}"></span>
-                <span class="chart-tooltip-label">롱폼</span>
-                <span class="chart-tooltip-value">${wk.longForm}편</span>
+                <span class="chart-tooltip-label">${t('dash.longForm')}</span>
+                <span class="chart-tooltip-value">${wk.longForm}${t('num.piece')}</span>
             </div>
             <div class="chart-tooltip-row">
                 <span class="chart-tooltip-dot" style="background:${color2}"></span>
-                <span class="chart-tooltip-label">숏폼</span>
-                <span class="chart-tooltip-value">${wk.shortForm}편</span>
+                <span class="chart-tooltip-label">${t('dash.shortForm')}</span>
+                <span class="chart-tooltip-value">${wk.shortForm}${t('num.piece')}</span>
             </div>`;
         tooltip.style.display = 'block';
 
@@ -839,7 +785,7 @@ function renderKanban() {
                     ${c.date ? `<span class="kanban-card-date">${formatDate(c.date)}</span>` : ''}
                     <span class="kanban-card-checklist ${clClass}">${cl.done}/${cl.total}</span>
                 </div>
-                ${hasScript ? `<div style="font-size:11px;margin-top:4px;display:flex;align-items:center;gap:4px"><span class="script-status ${sStatus}">${scriptStatusLabels[sStatus] || '초안'}</span></div>` : ''}
+                ${hasScript ? `<div style="font-size:11px;margin-top:4px;display:flex;align-items:center;gap:4px"><span class="script-status ${sStatus}">${scriptStatusLabels[sStatus] || t('scriptStatus.draft')}</span></div>` : ''}
                 <div class="kanban-card-actions">
                     ${canPrev ? `<button class="kanban-move-btn" data-id="${c.id}" data-dir="prev">← ${statusLabels[STATUS_ORDER[statusIdx - 1]]}</button>` : ''}
                     ${canNext ? `<button class="kanban-move-btn" data-id="${c.id}" data-dir="next">${statusLabels[STATUS_ORDER[statusIdx + 1]]} →</button>` : ''}
@@ -899,7 +845,12 @@ function setupCalendar() {
 function renderCalendar() {
     const date = state.calendarDate;
     const year = date.getFullYear(); const month = date.getMonth();
-    document.getElementById('calendarTitle').textContent = `${year}년 ${month + 1}월`;
+    if (getLang() === 'en') {
+        const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        document.getElementById('calendarTitle').textContent = t('cal.title', { year, month: monthNames[month] });
+    } else {
+        document.getElementById('calendarTitle').textContent = t('cal.title', { year, month: month + 1 });
+    }
 
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -974,16 +925,16 @@ function setupScriptEditorToolbar() {
             let replaceSelection = false;
 
             switch (btn.dataset.action) {
-                case 'hook': insert = '\n## 훅 (첫 5초)\n'; break;
+                case 'hook': insert = `\n## ${t('toolbar.hook')}\n`; break;
                 case 'heading': insert = '\n## '; break;
                 case 'bold':
-                    insert = `**${text.slice(start, end) || '텍스트'}**`;
+                    insert = `**${text.slice(start, end) || t('toolbar.hook')}**`;
                     replaceSelection = true; break;
-                case 'scene': insert = '\n---\n[장면: ] '; break;
+                case 'scene': insert = `\n---\n[${t('toolbar.scene')}: ] `; break;
                 case 'note':
-                    insert = `[${text.slice(start, end) || '연출 노트'}]`;
+                    insert = `[${text.slice(start, end) || t('toolbar.note')}]`;
                     replaceSelection = true; break;
-                case 'cta': insert = '\n## CTA\n좋아요와 구독 부탁드립니다!\n'; break;
+                case 'cta': insert = '\n## CTA\n'; break;
             }
 
             if (replaceSelection) {
@@ -999,7 +950,7 @@ function setupScriptEditorToolbar() {
 
 function updateWordCount() {
     const textarea = document.getElementById('contentScriptContent');
-    document.getElementById('wordCount').textContent = `${textarea.value.length}자`;
+    document.getElementById('wordCount').textContent = t('modal.chars', { n: textarea.value.length });
 }
 
 // ===== Content Modal =====
@@ -1042,7 +993,7 @@ function hideConfirmDialog() {
 function openEditContent(id) {
     const content = state.contents.find(c => c.id === id);
     if (!content) return;
-    document.getElementById('contentModalTitle').textContent = '콘텐츠 수정';
+    document.getElementById('contentModalTitle').textContent = t('modal.editContent');
     document.getElementById('contentId').value = content.id;
     document.getElementById('contentTitle').value = content.title;
     document.getElementById('contentPlatform').value = content.platform;
@@ -1058,13 +1009,13 @@ function openEditContent(id) {
     const thumbSection = document.getElementById('contentThumbSection');
     const thumbSummary = document.getElementById('contentThumbSummary');
     if (content.thumbnailText || content.thumbnailMemo) {
-        const styleLabels = { 'bold-white': '굵은 흰색', 'yellow-highlight': '노란 강조', 'red-bg': '빨간 배경', 'outline': '아웃라인', 'gradient': '그라디언트' };
-        const bgLabels = { 'closeup': '인물 클로즈업', 'before-after': '비포/애프터', 'product': '음식/제품', 'reaction': '반응샷', 'text-only': '텍스트 중심', 'custom': '기타' };
+        const styleLabels = { 'bold-white': t('nc.thumb.styleBoldWhite'), 'yellow-highlight': t('nc.thumb.styleYellow'), 'red-bg': t('nc.thumb.styleRed'), 'outline': t('nc.thumb.styleOutline'), 'gradient': t('nc.thumb.styleGradient') };
+        const bgLabels = { 'closeup': t('nc.thumb.bgCloseup'), 'before-after': t('nc.thumb.bgBeforeAfter'), 'product': t('nc.thumb.bgProduct'), 'reaction': t('nc.thumb.bgReaction'), 'text-only': t('nc.thumb.bgTextOnly'), 'custom': t('nc.thumb.bgCustom') };
         let html = '';
-        if (content.thumbnailText) html += `<div><strong>텍스트:</strong> ${escapeHtml(content.thumbnailText)}</div>`;
-        if (content.thumbnailStyle) html += `<div><strong>스타일:</strong> ${escapeHtml(styleLabels[content.thumbnailStyle] || content.thumbnailStyle)}</div>`;
-        if (content.thumbnailBg) html += `<div><strong>배경:</strong> ${escapeHtml(bgLabels[content.thumbnailBg] || content.thumbnailBg)}</div>`;
-        if (content.thumbnailMemo) html += `<div><strong>메모:</strong> ${escapeHtml(content.thumbnailMemo)}</div>`;
+        if (content.thumbnailText) html += `<div><strong>${t('nc.thumb.mainText')}:</strong> ${escapeHtml(content.thumbnailText)}</div>`;
+        if (content.thumbnailStyle) html += `<div><strong>${t('nc.thumb.textStyle')}:</strong> ${escapeHtml(styleLabels[content.thumbnailStyle] || content.thumbnailStyle)}</div>`;
+        if (content.thumbnailBg) html += `<div><strong>${t('nc.thumb.bgConcept')}:</strong> ${escapeHtml(bgLabels[content.thumbnailBg] || content.thumbnailBg)}</div>`;
+        if (content.thumbnailMemo) html += `<div><strong>${t('modal.memo')}:</strong> ${escapeHtml(content.thumbnailMemo)}</div>`;
         thumbSummary.innerHTML = html;
         thumbSection.style.display = '';
     } else {
@@ -1081,7 +1032,7 @@ function closeContentModal() { document.getElementById('contentModal').classList
 
 function saveContent() {
     const title = document.getElementById('contentTitle').value.trim();
-    if (!title) { toast('제목을 입력해주세요'); return; }
+    if (!title) { toast(t('toast.titleRequired')); return; }
 
     const id = document.getElementById('contentId').value;
     const scriptStatusVal = document.getElementById('contentScriptStatus').value;
@@ -1100,20 +1051,20 @@ function saveContent() {
 
     if (id) {
         const idx = state.contents.findIndex(c => c.id === id);
-        if (idx !== -1) { state.contents[idx] = { ...state.contents[idx], ...data }; toast('콘텐츠가 수정되었습니다'); }
+        if (idx !== -1) { state.contents[idx] = { ...state.contents[idx], ...data }; toast(t('toast.contentEdited')); }
     } else {
         state.contents.push({ id: generateId(), ...data, createdAt: new Date().toISOString() });
-        toast('콘텐츠가 추가되었습니다');
+        toast(t('toast.contentAdded'));
     }
     saveContents(); closeContentModal(); renderAll();
 }
 
 function deleteContent() {
     const id = document.getElementById('contentId').value;
-    if (!id || !confirm('이 콘텐츠를 삭제하시겠습니까?')) return;
+    if (!id || !confirm(t('toast.deleteConfirm'))) return;
     state.contents = state.contents.filter(c => c.id !== id);
     saveContents(); closeContentModal(); renderAll();
-    toast('콘텐츠가 삭제되었습니다');
+    toast(t('toast.contentDeleted'));
 }
 
 // ===== Checklist =====
@@ -1175,14 +1126,14 @@ async function openMyPage() {
     const usageText = document.getElementById('mypageUsageText');
     const usageFill = document.getElementById('mypageUsageFill');
     const usageDetail = document.getElementById('mypageUsageDetail');
-    usageText.textContent = '로딩 중...';
+    usageText.textContent = t('mypage.loading');
     usageFill.style.width = '0%';
     usageFill.className = 'mypage-usage-bar-fill';
     usageDetail.innerHTML = '';
 
     try {
         const res = await fetch('/api/youtube/usage');
-        if (!res.ok) throw new Error('사용량 조회 실패');
+        if (!res.ok) throw new Error(t('toast.usageLoadFail'));
         const usage = await res.json();
 
         const pct = Math.min((usage.used / usage.limit) * 100, 100);
@@ -1190,7 +1141,7 @@ async function openMyPage() {
         if (pct >= 90) usageFill.classList.add('danger');
         else if (pct >= 60) usageFill.classList.add('warning');
 
-        usageText.textContent = `${formatNumber(usage.used)} / ${formatNumber(usage.limit)} 유닛`;
+        usageText.textContent = t('mypage.units', { used: formatNumber(usage.used), limit: formatNumber(usage.limit) });
 
         const breakdown = usage.breakdown || {};
         const categories = Object.keys(breakdown);
@@ -1198,21 +1149,21 @@ async function openMyPage() {
             usageDetail.innerHTML = categories.map(cat =>
                 `<div class="mypage-usage-row">
                     <span class="mypage-usage-row-label">${escapeHtml(cat)}</span>
-                    <span class="mypage-usage-row-value">${formatNumber(breakdown[cat])} 유닛</span>
+                    <span class="mypage-usage-row-value">${formatNumber(breakdown[cat])} ${getLang() === 'en' ? 'units' : '유닛'}</span>
                 </div>`
             ).join('') +
             `<div class="mypage-usage-row">
-                <span class="mypage-usage-row-label">남은 유닛</span>
+                <span class="mypage-usage-row-label">${t('mypage.remainingUnits')}</span>
                 <span class="mypage-usage-row-value" style="color:${pct >= 90 ? 'var(--red)' : pct >= 60 ? 'var(--orange)' : 'var(--green)'}">${formatNumber(usage.remaining)}</span>
             </div>`;
         } else {
             usageDetail.innerHTML = `<div class="mypage-usage-row">
-                <span class="mypage-usage-row-label">오늘 사용 내역 없음</span>
-                <span class="mypage-usage-row-value">${formatNumber(usage.remaining)} 유닛 남음</span>
+                <span class="mypage-usage-row-label">${t('mypage.noUsage')}</span>
+                <span class="mypage-usage-row-value">${t('mypage.remainingLabel', { n: formatNumber(usage.remaining) })}</span>
             </div>`;
         }
     } catch {
-        usageText.textContent = '사용량을 불러올 수 없습니다';
+        usageText.textContent = t('toast.usageError');
     }
 }
 
@@ -1221,7 +1172,7 @@ function closeMyPage() { document.getElementById('myPageModal').classList.remove
 // ===== YouTube Integration =====
 function promptChannelConnect() {
     const saved = localStorage.getItem('creatorhub_yt_channel');
-    const input = prompt('YouTube 채널 ID를 입력하세요\n(YouTube Studio → 설정 → 채널 → 기본 정보에서 확인)', saved || '');
+    const input = prompt(t('yt.channelPrompt'), saved || '');
     if (!input || !input.trim()) return;
     localStorage.setItem('creatorhub_yt_channel', input.trim());
     loadYouTubeData();
@@ -1244,8 +1195,14 @@ function setupYouTube() {
 }
 
 function formatNumber(num) {
-    if (num >= 100000000) return (num / 100000000).toFixed(1) + '억';
-    if (num >= 10000) return (num / 10000).toFixed(1) + '만';
+    if (getLang() === 'en') {
+        if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+        return num.toLocaleString();
+    }
+    if (num >= 100000000) return (num / 100000000).toFixed(1) + t('num.billion');
+    if (num >= 10000) return (num / 10000).toFixed(1) + t('num.tenThousand');
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toLocaleString();
 }
@@ -1260,13 +1217,13 @@ async function loadYouTubeData() {
     const refreshBtn = document.getElementById('ytRefreshBtn');
     const connectBtn = document.getElementById('ytConnectBtn');
 
-    emptyEl.innerHTML = '<p class="empty-state">YouTube 데이터를 불러오는 중...</p>';
+    emptyEl.innerHTML = `<p class="empty-state">${escapeHtml(t('yt.loading'))}</p>`;
 
     try {
         const channelRes = await fetch(`/api/youtube/channel?channelId=${encodeURIComponent(channelId)}`);
         if (!channelRes.ok) {
             const err = await channelRes.json();
-            throw new Error(err.error || '채널 데이터를 가져올 수 없습니다');
+            throw new Error(err.error || t('misc.searchFail'));
         }
         const channel = await channelRes.json();
 
@@ -1280,14 +1237,14 @@ async function loadYouTubeData() {
         statsEl.style.display = 'grid';
         videosCard.style.display = 'block';
         refreshBtn.style.display = 'inline-flex';
-        connectBtn.textContent = '채널 변경';
+        connectBtn.textContent = t('yt.changeChannel');
 
         const channelInfoHtml = `
             <div class="yt-channel-info">
                 <img class="yt-channel-thumb" src="${channel.thumbnail}" alt="${escapeHtml(channel.title)}">
                 <div class="yt-channel-name">
                     ${escapeHtml(channel.title)}
-                    <small>연동됨</small>
+                    <small>${t('yt.connected')}</small>
                 </div>
             </div>`;
 
@@ -1305,10 +1262,10 @@ async function loadYouTubeData() {
             updateLastUploadBanner();
         }
 
-        toast(`"${channel.title}" 채널 데이터를 불러왔습니다`);
+        toast(t('yt.channelDataLoaded', { name: channel.title }));
     } catch (err) {
         emptyEl.style.display = 'block';
-        emptyEl.innerHTML = `<p class="empty-state" style="color:var(--red)">오류: ${escapeHtml(err.message)}<br><small>서버가 실행중인지 확인하세요 (node server.js)</small></p>`;
+        emptyEl.innerHTML = `<p class="empty-state" style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}<br><small>${t('misc.serverCheck')}</small></p>`;
         statsEl.style.display = 'none';
         videosCard.style.display = 'none';
         updateMyChannelHero(null);
@@ -1333,9 +1290,15 @@ function calcMilestone(value) {
 }
 
 function formatMilestone(n) {
-    if (n >= 100000000) return (n / 100000000) + '억';
-    if (n >= 10000) return (n / 10000) + '만';
-    if (n >= 1000) return (n / 1000) + '천';
+    if (getLang() === 'en') {
+        if (n >= 1000000000) return (n / 1000000000) + 'B';
+        if (n >= 1000000) return (n / 1000000) + 'M';
+        if (n >= 1000) return (n / 1000) + 'K';
+        return n.toLocaleString();
+    }
+    if (n >= 100000000) return (n / 100000000) + t('num.billion');
+    if (n >= 10000) return (n / 10000) + t('num.tenThousand');
+    if (n >= 1000) return (n / 1000) + t('num.thousand');
     return n.toLocaleString();
 }
 
@@ -1414,29 +1377,158 @@ function countWeekUploads() {
 }
 
 function updateUploadGoal() {
+    const CIRC = 2 * Math.PI * 32; // circumference for r=32
+
+    // — Monthly ring —
     const goal = getUploadGoal();
     const uploads = countMonthUploads();
-    const pct = goal > 0 ? Math.min(Math.round((uploads / goal) * 100), 100) : 0;
-
+    const monthPct = goal > 0 ? Math.min(uploads / goal, 1) : 0;
+    const monthRing = document.getElementById('goalRingMonthly');
+    if (monthRing) {
+        monthRing.setAttribute('stroke-dasharray', CIRC);
+        monthRing.setAttribute('stroke-dashoffset', CIRC * (1 - monthPct));
+    }
     const currentEl = document.getElementById('myChMonthUploads');
     const goalEl = document.getElementById('myChMonthGoal');
-    const progressEl = document.getElementById('myChGoalProgress');
-    const pctEl = document.getElementById('myChGoalPct');
     if (currentEl) currentEl.textContent = uploads;
     if (goalEl) goalEl.textContent = goal;
-    if (progressEl) {
-        progressEl.style.width = pct + '%';
-        progressEl.classList.toggle('complete', pct >= 100);
-    }
-    if (pctEl) pctEl.textContent = pct + '%';
 
-    // Weekly
+    // — Weekly ring —
     const weeklyGoal = getWeeklyGoal();
     const weekUploads = countWeekUploads();
+    const weekPct = weeklyGoal > 0 ? Math.min(weekUploads / weeklyGoal, 1) : 0;
+    const weekRing = document.getElementById('goalRingWeekly');
+    if (weekRing) {
+        weekRing.setAttribute('stroke-dasharray', CIRC);
+        weekRing.setAttribute('stroke-dashoffset', CIRC * (1 - weekPct));
+    }
     const weekUploadsEl = document.getElementById('myChWeekUploads');
     const weekGoalEl = document.getElementById('myChWeekGoal');
     if (weekUploadsEl) weekUploadsEl.textContent = weekUploads;
     if (weekGoalEl) weekGoalEl.textContent = weeklyGoal;
+
+    // — Upload Streak —
+    const streak = calcUploadStreak();
+    const streakNumEl = document.getElementById('goalStreakCurrent');
+    const streakLabelEl = document.getElementById('goalStreakLabel');
+    const streakBestEl = document.getElementById('goalStreakBest');
+    if (streakNumEl) streakNumEl.textContent = streak.current;
+    if (streakLabelEl) {
+        streakLabelEl.textContent = streak.current > 0
+            ? t('goal.streakWeeks', { n: streak.current })
+            : t('goal.streakNone');
+    }
+    if (streakBestEl) {
+        streakBestEl.textContent = streak.best > 0
+            ? t('goal.streakBest', { n: streak.best })
+            : '';
+    }
+
+    // — Remaining Pace —
+    const pace = calcRemainingPace();
+    const paceInfoEl = document.getElementById('goalPaceInfo');
+    const paceBadgeEl = document.getElementById('goalPaceBadge');
+    if (paceInfoEl) {
+        paceInfoEl.textContent = pace.uploadsLeft <= 0
+            ? ''
+            : t('goal.paceInfo', { days: pace.daysLeft, uploads: pace.uploadsLeft });
+    }
+    if (paceBadgeEl) {
+        paceBadgeEl.className = 'goal-pace-badge';
+        if (pace.uploadsLeft <= 0) {
+            paceBadgeEl.textContent = t('goal.paceDone');
+            paceBadgeEl.classList.add('done');
+        } else {
+            const labels = { relaxed: t('goal.paceRelaxed'), 'on-track': t('goal.paceOnTrack'), tight: t('goal.paceTight') };
+            paceBadgeEl.textContent = labels[pace.pace] || '';
+            paceBadgeEl.classList.add(pace.pace);
+        }
+    }
+}
+
+function calcUploadStreak() {
+    if (!state.ytVideos || !state.ytVideos.length) return { current: 0, best: 0 };
+
+    // Build a Set of ISO week keys (YYYY-Www) that have uploads
+    const weekSet = new Set();
+    state.ytVideos.forEach(v => {
+        const d = new Date(v.publishedAt);
+        weekSet.add(getISOWeekKey(d));
+    });
+
+    // Current streak: from this week backwards
+    const now = new Date();
+    let current = 0;
+    let d = new Date(now);
+    // If current week has no upload, streak is 0
+    if (weekSet.has(getISOWeekKey(d))) {
+        while (weekSet.has(getISOWeekKey(d))) {
+            current++;
+            d.setDate(d.getDate() - 7);
+        }
+    }
+
+    // Best streak: scan all weeks in range
+    if (weekSet.size === 0) return { current: 0, best: 0 };
+    const sorted = Array.from(weekSet).sort();
+    let best = 1, run = 1;
+    for (let i = 1; i < sorted.length; i++) {
+        if (isConsecutiveWeek(sorted[i - 1], sorted[i])) {
+            run++;
+            if (run > best) best = run;
+        } else {
+            run = 1;
+        }
+    }
+    return { current, best: Math.max(best, current) };
+}
+
+function getISOWeekKey(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+    return d.getUTCFullYear() + '-W' + String(weekNo).padStart(2, '0');
+}
+
+function isConsecutiveWeek(a, b) {
+    // Parse YYYY-Www and check if b = a + 1 week
+    const [aY, aW] = a.split('-W').map(Number);
+    const [bY, bW] = b.split('-W').map(Number);
+    if (aY === bY) return bW === aW + 1;
+    // Year boundary: last week of year → week 1 of next year
+    if (bY === aY + 1 && bW === 1) {
+        // Check if aW is the last week of aY (52 or 53)
+        const dec28 = new Date(Date.UTC(aY, 11, 28));
+        dec28.setUTCDate(dec28.getUTCDate() + 4 - (dec28.getUTCDay() || 7));
+        const lastWeek = Math.ceil(((dec28 - new Date(Date.UTC(dec28.getUTCFullYear(), 0, 1))) / 86400000 + 1) / 7);
+        return aW === lastWeek;
+    }
+    return false;
+}
+
+function calcRemainingPace() {
+    const goal = getUploadGoal();
+    const uploads = countMonthUploads();
+    const uploadsLeft = Math.max(goal - uploads, 0);
+
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysLeft = lastDay - now.getDate();
+
+    let pace = 'on-track';
+    if (uploadsLeft <= 0) {
+        pace = 'done';
+    } else if (daysLeft <= 0) {
+        pace = 'tight';
+    } else {
+        const ratio = daysLeft / uploadsLeft;
+        if (ratio > 7) pace = 'relaxed';
+        else if (ratio >= 3) pace = 'on-track';
+        else pace = 'tight';
+    }
+
+    return { daysLeft, uploadsLeft, pace };
 }
 
 function setupUploadGoal() {
@@ -1469,8 +1561,8 @@ function openGoalModal() {
 
     monthlyInput.value = getUploadGoal();
     weeklyInput.value = getWeeklyGoal();
-    monthlyCurrent.textContent = `이번 달 ${countMonthUploads()}편 업로드`;
-    weeklyCurrent.textContent = `이번 주 ${countWeekUploads()}편 업로드`;
+    monthlyCurrent.textContent = t('goal.monthlyCurrent', { n: countMonthUploads() });
+    weeklyCurrent.textContent = t('goal.weeklyCurrent', { n: countWeekUploads() });
 
     overlay.classList.add('active');
 }
@@ -1480,11 +1572,11 @@ function saveGoalSettings() {
     const weeklyVal = parseInt(document.getElementById('goalWeeklyInput').value);
 
     if (!monthlyVal || monthlyVal < 1 || monthlyVal > 100) {
-        toast('월간 목표는 1~100 사이 숫자를 입력하세요');
+        toast(t('toast.goalMonthlyError'));
         return;
     }
     if (!weeklyVal || weeklyVal < 1 || weeklyVal > 30) {
-        toast('주간 목표는 1~30 사이 숫자를 입력하세요');
+        toast(t('toast.goalWeeklyError'));
         return;
     }
 
@@ -1492,7 +1584,7 @@ function saveGoalSettings() {
     localStorage.setItem('creatorhub_weekly_goal', weeklyVal);
     updateUploadGoal();
     document.getElementById('goalModal').classList.remove('active');
-    toast(`목표가 설정되었습니다 (월 ${monthlyVal}편, 주 ${weeklyVal}편)`);
+    toast(t('toast.goalSaved', { monthly: monthlyVal, weekly: weeklyVal }));
 }
 
 // ===== Last Upload Banner =====
@@ -1508,14 +1600,14 @@ function updateLastUploadBanner() {
     const toDateOnly = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const diffDays = Math.round((toDateOnly(now) - toDateOnly(lastDate)) / (1000 * 60 * 60 * 24));
 
-    document.getElementById('lastUploadDays').textContent = `마지막 업로드로부터 +${diffDays}일`;
+    document.getElementById('lastUploadDays').textContent = t('dash.lastUploadDays', { n: diffDays });
     const subEl = document.getElementById('lastUploadSub');
     if (subEl) {
-        if (diffDays === 0) subEl.textContent = '오늘 업로드했어요! 좋은 흐름이에요';
-        else if (diffDays <= 3) subEl.textContent = '꾸준한 업로드가 성장의 핵심이에요';
-        else if (diffDays <= 7) subEl.textContent = '이번 주 안에 새 영상을 올려보세요';
-        else if (diffDays <= 14) subEl.textContent = '업로드 간격이 벌어지고 있어요';
-        else subEl.textContent = '오래 쉬었네요, 다시 시작해볼까요?';
+        if (diffDays === 0) subEl.textContent = t('dash.lastUpload0');
+        else if (diffDays <= 3) subEl.textContent = t('dash.lastUpload3');
+        else if (diffDays <= 7) subEl.textContent = t('dash.lastUpload7');
+        else if (diffDays <= 14) subEl.textContent = t('dash.lastUpload14');
+        else subEl.textContent = t('dash.lastUploadLong');
     }
     banner.style.display = '';
     banner.classList.toggle('warn', diffDays >= 14);
@@ -1561,7 +1653,7 @@ function resetSearchForm() {
 
 function submitSearch() {
     const query = document.getElementById('searchKeyword').value.trim();
-    if (!query) { toast('검색어를 입력하세요'); return; }
+    if (!query) { toast(t('toast.searchRequired')); return; }
 
     const params = {
         query,
@@ -1588,13 +1680,13 @@ async function performSearch(params, loadMore) {
         _discoverAllVideos = [];
         _discoverNextPageToken = null;
         if (hasSubFilter) {
-            grid.innerHTML = '<div class="discover-loading">구독자 필터 적용 중... (더 많은 결과를 탐색합니다)</div>';
+            grid.innerHTML = `<div class="discover-loading">${t('discover.filterLoading')}</div>`;
         } else {
-            grid.innerHTML = '<div class="discover-loading">검색 중...</div>';
+            grid.innerHTML = `<div class="discover-loading">${t('discover.loading')}</div>`;
         }
     } else {
         const moreBtn = document.getElementById('discoverMoreBtn');
-        if (moreBtn) { moreBtn.disabled = true; moreBtn.textContent = '불러오는 중...'; }
+        if (moreBtn) { moreBtn.disabled = true; moreBtn.textContent = t('discover.loading'); }
     }
 
     try {
@@ -1603,7 +1695,7 @@ async function performSearch(params, loadMore) {
         const tokenParam = loadMore && _discoverNextPageToken ? `&pageToken=${encodeURIComponent(_discoverNextPageToken)}` : '';
         const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(params.query)}&order=${encodeURIComponent(apiOrder)}&maxResults=${perPage}&pages=${pages}${durationParam}${tokenParam}`);
         if (!res.ok) {
-            let msg = '검색에 실패했습니다';
+            let msg = t('misc.searchFail');
             try { const err = await res.json(); msg = err.error || msg; } catch {}
             throw new Error(msg);
         }
@@ -1612,7 +1704,7 @@ async function performSearch(params, loadMore) {
         _discoverNextPageToken = data.nextPageToken || null;
         const totalFetched = videos.length;
 
-        // 구독자 수 필터링
+        // Subscriber filter
         const subMin = parseInt(params.subMin) || 0;
         const subMax = parseInt(params.subMax) || 0;
         if (subMin > 0) videos = videos.filter(v => (v.subscriberCount || 0) >= subMin);
@@ -1627,17 +1719,17 @@ async function performSearch(params, loadMore) {
         _discoverAllVideos = _discoverAllVideos.concat(videos);
 
         const infoText = hasSubFilter
-            ? `${_discoverAllVideos.length}개 표시 (필터 적용)`
-            : `${_discoverAllVideos.length}개의 결과`;
+            ? t('discover.resultFiltered', { n: _discoverAllVideos.length })
+            : t('discover.resultCount', { n: _discoverAllVideos.length });
         infoEl.textContent = infoText;
         renderDiscoverResults(_discoverAllVideos);
     } catch (err) {
         if (!loadMore) {
-            grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">오류: ${escapeHtml(err.message)}</p></div>`;
+            grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</p></div>`;
         } else {
-            toast('더 보기 실패: ' + err.message);
+            toast(t('toast.loadMoreFail') + err.message);
             const moreBtn = document.getElementById('discoverMoreBtn');
-            if (moreBtn) { moreBtn.disabled = false; moreBtn.textContent = '더 보기'; }
+            if (moreBtn) { moreBtn.disabled = false; moreBtn.textContent = t('discover.loadMore'); }
         }
     }
 }
@@ -1647,20 +1739,20 @@ function updateActiveFilters(params) {
     const chips = [];
     chips.push(`"${params.query}"`);
 
-    const durationLabels = { short: '숏츠', medium: '롱폼', long: '롱폼+' };
+    const durationLabels = { short: t('discover.shorts'), medium: t('discover.medium'), long: t('discover.longPlus') };
     if (params.duration) chips.push(durationLabels[params.duration]);
 
-    const orderLabels = { viewCount: '조회수순', relevance: '관련도순', date: '최신순', performance: '성과순', velocity: '폭발력순' };
-    chips.push(orderLabels[params.order] || '조회수순');
+    const orderLabels = { viewCount: t('discover.sortViews'), relevance: t('discover.sortRelevance'), date: t('discover.sortDate'), performance: t('discover.sortPerformance'), velocity: t('discover.sortVelocity') };
+    chips.push(orderLabels[params.order] || t('discover.sortViews'));
 
     const subMin = parseInt(params.subMin) || 0;
     const subMax = parseInt(params.subMax) || 0;
     if (subMin > 0 || subMax > 0) {
-        const fmt = n => n >= 10000 ? (n / 10000) + '만' : n >= 1000 ? (n / 1000) + '천' : n;
-        let subLabel = '구독자 ';
+        const fmt = n => n >= 10000 ? formatNumber(n) : n >= 1000 ? formatNumber(n) : n;
+        let subLabel = t('channel.subscribers') + ' ';
         if (subMin > 0 && subMax > 0) subLabel += `${fmt(subMin)}~${fmt(subMax)}`;
-        else if (subMin > 0) subLabel += `${fmt(subMin)} 이상`;
-        else subLabel += `${fmt(subMax)} 이하`;
+        else if (subMin > 0) subLabel += t('discover.subAbove', { n: fmt(subMin) });
+        else subLabel += t('discover.subBelow', { n: fmt(subMax) });
         chips.push(subLabel);
     }
 
@@ -1670,12 +1762,14 @@ function updateActiveFilters(params) {
 function renderDiscoverResults(videos) {
     const grid = document.getElementById('discoverGrid');
     if (!videos || videos.length === 0) {
-        grid.innerHTML = '<div class="discover-empty"><p>검색 결과가 없습니다</p></div>';
+        grid.innerHTML = `<div class="discover-empty"><p>${t('discover.noResults')}</p></div>`;
         return;
     }
 
     grid.innerHTML = videos.map(v => {
-        const date = new Date(v.publishedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
+        const dateFmt = getLang() === 'en' ? { year: 'numeric', month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' };
+        const dateLocale = getLang() === 'en' ? 'en-US' : 'ko-KR';
+        const date = new Date(v.publishedAt).toLocaleDateString(dateLocale, dateFmt);
         const ratio = v.viewToSubRatio || 0;
         const ratioClass = ratio >= 200 ? 'hot' : ratio >= 50 ? 'good' : 'normal';
         const ratioLabel = ratio >= 200 ? '🔥' : ratio >= 50 ? '✨' : '';
@@ -1690,13 +1784,13 @@ function renderDiscoverResults(videos) {
                     <span>👍 ${formatNumber(v.likeCount)}</span>
                     <span>💬 ${formatNumber(v.commentCount)}</span>
                 </div>
-                <div class="discover-card-sub">구독자 ${formatNumber(v.subscriberCount || 0)}</div>
-                <span class="discover-card-ratio ${ratioClass}">${ratioLabel} 구독자 대비 ${ratio}%</span>
+                <div class="discover-card-sub">${t('discover.subLabel', { n: formatNumber(v.subscriberCount || 0) })}</div>
+                <span class="discover-card-ratio ${ratioClass}">${ratioLabel} ${t('discover.subRatioLabel', { n: ratio })}</span>
                 ${velocityBadgeHtml(v)}
                 <div class="discover-card-date">${date}</div>
             </div>
             <div class="discover-card-actions">
-                <button class="btn btn-secondary discover-ref-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>레퍼런스 저장</button>
+                <button class="btn btn-secondary discover-ref-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>${t('discover.saveRef')}</button>
             </div>
         </div>`;
     }).join('');
@@ -1708,13 +1802,13 @@ function renderDiscoverResults(videos) {
         });
     });
 
-    // 더 보기 버튼
+    // Load more button
     const oldBtn = document.getElementById('discoverMoreBtn');
     if (oldBtn) oldBtn.remove();
     if (_discoverNextPageToken && _lastSearchParams) {
         const wrap = document.createElement('div');
         wrap.className = 'discover-more-wrap';
-        wrap.innerHTML = '<button class="btn btn-secondary" id="discoverMoreBtn">더 보기</button>';
+        wrap.innerHTML = `<button class="btn btn-secondary" id="discoverMoreBtn">${t('discover.loadMore')}</button>`;
         grid.after(wrap);
         document.getElementById('discoverMoreBtn').addEventListener('click', () => {
             performSearch(_lastSearchParams, true);
@@ -1752,7 +1846,7 @@ function closeChannelSearchModal() {
 
 function submitChannelSearch() {
     const query = document.getElementById('channelSearchKeyword').value.trim();
-    if (!query) { toast('검색어를 입력하세요'); return; }
+    if (!query) { toast(t('toast.searchRequired')); return; }
     _lastChannelSearchKeyword = query;
     const subMin = parseInt(document.getElementById('channelSubMin').value) || 0;
     const subMax = parseInt(document.getElementById('channelSubMax').value) || 0;
@@ -1767,14 +1861,14 @@ async function performChannelSearch(query, subMin, subMax) {
     const fetchCount = hasSubFilter ? 50 : 12;
 
     grid.innerHTML = hasSubFilter
-        ? '<div class="discover-loading">구독자 필터 적용 중...</div>'
-        : '<div class="discover-loading">채널 검색 중...</div>';
+        ? `<div class="discover-loading">${t('channel.filterLoading')}</div>`
+        : `<div class="discover-loading">${t('channel.loading')}</div>`;
 
     try {
         const res = await fetch(`/api/youtube/search-channels?q=${encodeURIComponent(query)}&maxResults=${fetchCount}`);
         if (!res.ok) {
             const err = await res.json();
-            throw new Error(err.error || '검색에 실패했습니다');
+            throw new Error(err.error || t('misc.searchFail'));
         }
         let channels = await res.json();
         const totalFetched = channels.length;
@@ -1783,18 +1877,18 @@ async function performChannelSearch(query, subMin, subMax) {
         if (subMax > 0) channels = channels.filter(ch => ch.subscriberCount <= subMax);
 
         infoEl.textContent = hasSubFilter
-            ? `${totalFetched}개 중 ${channels.length}개 일치`
-            : `${channels.length}개의 결과`;
+            ? t('discover.fetchMatch', { total: totalFetched, match: channels.length })
+            : t('discover.resultCount', { n: channels.length });
         renderChannelResults(channels);
     } catch (err) {
-        grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">오류: ${escapeHtml(err.message)}</p></div>`;
+        grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</p></div>`;
     }
 }
 
 function renderChannelResults(channels) {
     const grid = document.getElementById('channelGrid');
     if (!channels || channels.length === 0) {
-        grid.innerHTML = '<div class="discover-empty"><p>검색 결과가 없습니다</p></div>';
+        grid.innerHTML = `<div class="discover-empty"><p>${t('discover.noResults')}</p></div>`;
         return;
     }
 
@@ -1809,20 +1903,20 @@ function renderChannelResults(channels) {
             <div class="channel-card-stats">
                 <div class="channel-card-stat">
                     <span class="channel-card-stat-value">${formatNumber(ch.subscriberCount)}</span>
-                    <span class="channel-card-stat-label">구독자</span>
+                    <span class="channel-card-stat-label">${t('channel.subscribers')}</span>
                 </div>
                 <div class="channel-card-stat">
                     <span class="channel-card-stat-value">${formatNumber(ch.videoCount)}</span>
-                    <span class="channel-card-stat-label">영상</span>
+                    <span class="channel-card-stat-label">${t('channel.videos')}</span>
                 </div>
                 <div class="channel-card-stat">
                     <span class="channel-card-stat-value">${formatNumber(ch.viewCount)}</span>
-                    <span class="channel-card-stat-label">총 조회수</span>
+                    <span class="channel-card-stat-label">${t('channel.totalViews')}</span>
                 </div>
             </div>
             <div class="channel-card-actions">
-                <a class="btn btn-secondary" href="https://www.youtube.com/channel/${ch.id}" target="_blank">YouTube에서 보기</a>
-                <button class="btn btn-primary channel-connect-btn" data-id="${ch.id}">채널 연동</button>
+                <a class="btn btn-secondary" href="https://www.youtube.com/channel/${ch.id}" target="_blank">${t('channel.viewOnYT')}</a>
+                <button class="btn btn-primary channel-connect-btn" data-id="${ch.id}">${t('channel.connect')}</button>
             </div>
         </div>`;
     }).join('');
@@ -1830,7 +1924,7 @@ function renderChannelResults(channels) {
     grid.querySelectorAll('.channel-connect-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             localStorage.setItem('creatorhub_yt_channel', btn.dataset.id);
-            toast('채널이 연동되었습니다. 대시보드에서 확인하세요.');
+            toast(t('toast.channelConnected'));
             loadYouTubeData();
         });
     });
@@ -1841,7 +1935,7 @@ let _pendingRefVideo = null;
 function saveAsReference(video) {
     const exists = state.references.some(r => r.videoId === video.id);
     if (exists) {
-        toast('이미 저장된 레퍼런스입니다');
+        toast(t('toast.refAlreadySaved'));
         return;
     }
     _pendingRefVideo = video;
@@ -1853,11 +1947,11 @@ function saveReferences() { localStorage.setItem('creatorhub_references', JSON.s
 
 function setupReferences() {
     document.getElementById('refClearAllBtn').addEventListener('click', () => {
-        if (!confirm('모든 레퍼런스를 삭제하시겠습니까?')) return;
+        if (!confirm(t('toast.allRefDeleteConfirm'))) return;
         state.references = [];
         saveReferences();
         renderReferences();
-        toast('모든 레퍼런스가 삭제되었습니다');
+        toast(t('toast.allRefDeleted'));
     });
 
     // Folder modal events
@@ -1896,47 +1990,48 @@ function renderReferences() {
         filtered = state.references.filter(r => r.folderId === state.activeRefFolder);
     }
 
-    countEl.textContent = `${filtered.length}개의 레퍼런스`;
+    countEl.textContent = t('ref.count', { n: filtered.length });
     clearBtn.style.display = state.references.length > 0 ? '' : 'none';
 
     if (filtered.length === 0) {
         grid.innerHTML = `
             <div class="discover-empty">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-                <p>저장된 레퍼런스가 없습니다</p>
-                <p style="font-size:12px;color:var(--text-muted);margin-top:4px">콘텐츠 탐색에서 영상을 검색하고 레퍼런스로 저장해보세요</p>
+                <p>${t('ref.emptyTitle')}</p>
+                <p style="font-size:12px;color:var(--text-muted);margin-top:4px">${t('ref.emptyDesc')}</p>
             </div>`;
         return;
     }
 
     grid.innerHTML = filtered.map(ref => {
-        const pubDate = new Date(ref.publishedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
-        const savedDate = new Date(ref.savedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+        const dateLocale = getLang() === 'en' ? 'en-US' : 'ko-KR';
+        const pubDate = new Date(ref.publishedAt).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
+        const savedDate = new Date(ref.savedAt).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' });
         const folder = ref.folderId ? state.refFolders.find(f => f.id === ref.folderId) : null;
         const folderBadge = folder ? `<span class="ref-card-folder">${escapeHtml(folder.name)}</span>` : '';
         return `
         <div class="ref-card" data-id="${ref.id}">
             <div class="ref-card-thumb-wrap">
                 <img class="ref-card-thumb" src="${ref.thumbnail}" alt="${escapeHtml(ref.title)}">
-                <a class="ref-card-link" href="${ref.url}" target="_blank" title="YouTube에서 보기">
+                <a class="ref-card-link" href="${ref.url}" target="_blank" title="${t('channel.viewOnYT')}">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                 </a>
             </div>
             <div class="ref-card-body">
                 ${folderBadge}
                 <div class="ref-card-title">${escapeHtml(ref.title)}</div>
-                <div class="ref-card-channel">${escapeHtml(ref.channelTitle)} · 구독자 ${formatNumber(ref.subscriberCount || 0)} · ${pubDate}</div>
+                <div class="ref-card-channel">${escapeHtml(ref.channelTitle)} · ${t('discover.subLabel', { n: formatNumber(ref.subscriberCount || 0) })} · ${pubDate}</div>
                 <div class="ref-card-stats">
                     <span>👁 ${formatNumber(ref.viewCount)}</span>
                     <span>👍 ${formatNumber(ref.likeCount)}</span>
                     <span>💬 ${formatNumber(ref.commentCount)}</span>
                 </div>
-                ${ref.viewToSubRatio ? `<span class="discover-card-ratio ${ref.viewToSubRatio >= 200 ? 'hot' : ref.viewToSubRatio >= 50 ? 'good' : 'normal'}">${ref.viewToSubRatio >= 200 ? '🔥' : ref.viewToSubRatio >= 50 ? '✨' : ''} 구독자 대비 ${ref.viewToSubRatio}%</span>` : ''}
+                ${ref.viewToSubRatio ? `<span class="discover-card-ratio ${ref.viewToSubRatio >= 200 ? 'hot' : ref.viewToSubRatio >= 50 ? 'good' : 'normal'}">${ref.viewToSubRatio >= 200 ? '🔥' : ref.viewToSubRatio >= 50 ? '✨' : ''} ${t('discover.subRatioLabel', { n: ref.viewToSubRatio })}</span>` : ''}
             </div>
-            <div class="ref-card-saved">저장: ${savedDate}</div>
+            <div class="ref-card-saved">${t('ref.saved', { date: savedDate })}</div>
             <div class="ref-card-actions">
-                <button class="btn btn-primary ref-use-btn" data-id="${ref.id}">콘텐츠로 등록</button>
-                <button class="btn btn-secondary ref-delete-btn" data-id="${ref.id}">삭제</button>
+                <button class="btn btn-primary ref-use-btn" data-id="${ref.id}">${t('ref.useAsContent')}</button>
+                <button class="btn btn-secondary ref-delete-btn" data-id="${ref.id}">${t('ref.delete')}</button>
             </div>
         </div>`;
     }).join('');
@@ -1956,14 +2051,14 @@ function useReferenceAsContent(refId) {
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     openAddContent(dateStr);
     document.getElementById('contentTitle').value = ref.title;
-    document.getElementById('contentMemo').value = `[레퍼런스]\n제목: ${ref.title}\nURL: ${ref.url}\n채널: ${ref.channelTitle}\n조회수: ${formatNumber(ref.viewCount)}`;
+    document.getElementById('contentMemo').value = `[${t('nav.references')}]\n${t('modal.title')}: ${ref.title}\nURL: ${ref.url}\n${t('channel.subscribers')}: ${ref.channelTitle}\n${t('misc.views')}: ${formatNumber(ref.viewCount)}`;
 }
 
 function deleteReference(refId) {
     state.references = state.references.filter(r => r.id !== refId);
     saveReferences();
     renderReferences();
-    toast('레퍼런스가 삭제되었습니다');
+    toast(t('toast.refDeleted'));
 }
 
 // ===== Reference Folders =====
@@ -1981,7 +2076,7 @@ function openRefFolderModal() {
         <span class="folder-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
         </span>
-        <span>미분류</span>
+        <span>${t('ref.folderUncategorized')}</span>
         <span class="folder-check">&#10003;</span>
     </div>`;
     state.refFolders.forEach(f => {
@@ -2038,15 +2133,15 @@ function confirmRefFolderSave() {
     });
     saveReferences();
     closeRefFolderModal();
-    toast('레퍼런스가 저장되었습니다');
+    toast(t('toast.refSaved'));
     if (state.currentTab === 'references') renderReferences();
 }
 
 function createRefFolderInline() {
     const input = document.getElementById('refFolderNewName');
     const name = input.value.trim();
-    if (!name) { toast('폴더 이름을 입력하세요'); return; }
-    if (state.refFolders.some(f => f.name === name)) { toast('같은 이름의 폴더가 있습니다'); return; }
+    if (!name) { toast(t('toast.folderNameRequired')); return; }
+    if (state.refFolders.some(f => f.name === name)) { toast(t('toast.folderDuplicate')); return; }
 
     const folder = { id: generateId(), name, createdAt: new Date().toISOString() };
     state.refFolders.push(folder);
@@ -2077,10 +2172,10 @@ function renderRefFolderChips() {
     const uncatCount = state.references.filter(r => !r.folderId).length;
 
     let html = `<button class="ref-folder-chip${state.activeRefFolder === null ? ' active' : ''}" data-folder="all">
-        전체 <span class="ref-folder-count">${allCount}</span>
+        ${t('ref.folderAll')} <span class="ref-folder-count">${allCount}</span>
     </button>`;
     html += `<button class="ref-folder-chip${state.activeRefFolder === 'uncategorized' ? ' active' : ''}" data-folder="uncategorized">
-        미분류 <span class="ref-folder-count">${uncatCount}</span>
+        ${t('ref.folderUncategorized')} <span class="ref-folder-count">${uncatCount}</span>
     </button>`;
 
     state.refFolders.forEach(f => {
@@ -2090,7 +2185,7 @@ function renderRefFolderChips() {
         </button>`;
     });
 
-    html += `<button class="ref-folder-add-btn" id="refFolderAddChip">+ 새 폴더</button>`;
+    html += `<button class="ref-folder-add-btn" id="refFolderAddChip">${t('ref.folderNew')}</button>`;
     bar.innerHTML = html;
     bindRefFolderChipEvents();
 }
@@ -2123,15 +2218,15 @@ function bindRefFolderChipEvents() {
 }
 
 function createRefFolderFromChipBar() {
-    const name = prompt('새 폴더 이름을 입력하세요:');
+    const name = prompt(t('ref.folderNewPrompt'));
     if (!name || !name.trim()) return;
     const trimmed = name.trim();
-    if (state.refFolders.some(f => f.name === trimmed)) { toast('같은 이름의 폴더가 있습니다'); return; }
+    if (state.refFolders.some(f => f.name === trimmed)) { toast(t('toast.folderDuplicate')); return; }
 
     state.refFolders.push({ id: generateId(), name: trimmed, createdAt: new Date().toISOString() });
     saveRefFolders();
     renderReferences();
-    toast(`"${trimmed}" 폴더가 생성되었습니다`);
+    toast(t('toast.folderCreated', { name: trimmed }));
 }
 
 function showFolderContextMenu(e, folderId) {
@@ -2154,20 +2249,20 @@ function closeFolderContextMenu() {
 function renameRefFolder(id) {
     const folder = state.refFolders.find(f => f.id === id);
     if (!folder) return;
-    const newName = prompt('새 폴더 이름:', folder.name);
+    const newName = prompt(t('ref.folderRenamePrompt'), folder.name);
     if (!newName || !newName.trim() || newName.trim() === folder.name) return;
     const trimmed = newName.trim();
-    if (state.refFolders.some(f => f.id !== id && f.name === trimmed)) { toast('같은 이름의 폴더가 있습니다'); return; }
+    if (state.refFolders.some(f => f.id !== id && f.name === trimmed)) { toast(t('toast.folderDuplicate')); return; }
     folder.name = trimmed;
     saveRefFolders();
     renderReferences();
-    toast('폴더 이름이 변경되었습니다');
+    toast(t('toast.folderRenamed'));
 }
 
 function deleteRefFolder(id) {
     const folder = state.refFolders.find(f => f.id === id);
     if (!folder) return;
-    if (!confirm(`"${folder.name}" 폴더를 삭제하시겠습니까?\n포함된 레퍼런스는 미분류로 이동됩니다.`)) return;
+    if (!confirm(t('toast.folderDeleteConfirm', { name: folder.name }))) return;
 
     // Move references to uncategorized
     state.references.forEach(r => { if (r.folderId === id) r.folderId = null; });
@@ -2180,18 +2275,19 @@ function deleteRefFolder(id) {
     // Reset filter if viewing deleted folder
     if (state.activeRefFolder === id) state.activeRefFolder = null;
     renderReferences();
-    toast('폴더가 삭제되었습니다');
+    toast(t('toast.folderDeleted'));
 }
 
 function renderYouTubeVideos(videos) {
     const container = document.getElementById('ytVideosList');
     if (!videos || videos.length === 0) {
-        container.innerHTML = '<p class="empty-state">영상이 없습니다</p>';
+        container.innerHTML = `<p class="empty-state">${t('yt.noVideos')}</p>`;
         return;
     }
 
     container.innerHTML = videos.map(v => {
-        const date = new Date(v.publishedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
+        const dateLocale = getLang() === 'en' ? 'en-US' : 'ko-KR';
+        const date = new Date(v.publishedAt).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
         return `
         <div class="yt-video-item">
             <img class="yt-video-thumb" src="${v.thumbnail}" alt="${escapeHtml(v.title)}">
@@ -2243,13 +2339,13 @@ async function loadTrendingVideos(categoryId) {
 
     if (_ideasTrendingLoaded && categoryId === undefined) return;
 
-    grid.innerHTML = '<div class="discover-loading">트렌드 영상을 불러오는 중...</div>';
+    grid.innerHTML = `<div class="discover-loading">${t('ideas.trendLoading')}</div>`;
 
     try {
         const categoryParam = selectVal ? `&videoCategoryId=${encodeURIComponent(selectVal)}` : '';
         const res = await fetch(`/api/youtube/trending?regionCode=KR&maxResults=12${categoryParam}`);
         if (!res.ok) {
-            let msg = '트렌드 영상을 가져올 수 없습니다';
+            let msg = t('misc.searchFail');
             try { const err = await res.json(); msg = err.error || msg; } catch {}
             throw new Error(msg);
         }
@@ -2258,7 +2354,7 @@ async function loadTrendingVideos(categoryId) {
         _ideasTrendingCache = videos;
         filterAndRenderTrending();
     } catch (err) {
-        grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">오류: ${escapeHtml(err.message)}</p></div>`;
+        grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</p></div>`;
     }
 }
 
@@ -2282,7 +2378,7 @@ function filterAndRenderTrending() {
 function renderTrendingVideos(videos) {
     const grid = document.getElementById('ideasTrendingGrid');
     if (!videos || videos.length === 0) {
-        grid.innerHTML = '<div class="discover-empty"><p>트렌드 영상이 없습니다</p></div>';
+        grid.innerHTML = `<div class="discover-empty"><p>${t('ideas.trendEmpty')}</p></div>`;
         return;
     }
 
@@ -2298,12 +2394,12 @@ function renderTrendingVideos(videos) {
                     <span>👁 ${formatNumber(v.viewCount)}</span>
                     <span>👍 ${formatNumber(v.likeCount)}</span>
                 </div>
-                <div class="ideas-video-card-sub">구독자 ${formatNumber(v.subscriberCount || 0)}</div>
+                <div class="ideas-video-card-sub">${t('discover.subLabel', { n: formatNumber(v.subscriberCount || 0) })}</div>
                 ${velocityBadgeHtml(v)}
                 <div class="ideas-video-card-date">${timeAgo}</div>
             </div>
             <div class="ideas-video-card-actions">
-                <button class="btn btn-primary ideas-save-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}' data-source="trending">아이디어로 저장</button>
+                <button class="btn btn-primary ideas-save-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}' data-source="trending">${t('ideas.saveAsIdea')}</button>
             </div>
         </div>`;
     }).join('');
@@ -2319,24 +2415,24 @@ function renderTrendingVideos(videos) {
 async function analyzeKeyword() {
     const input = document.getElementById('ideasKeywordInput');
     const keyword = input.value.trim();
-    if (!keyword) { toast('키워드를 입력하세요'); return; }
+    if (!keyword) { toast(t('toast.keywordRequired')); return; }
 
     const chipsContainer = document.getElementById('ideasKeywordChips');
     const videosContainer = document.getElementById('ideasKeywordVideos');
-    chipsContainer.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">연관 키워드 분석 중...</span>';
+    chipsContainer.innerHTML = `<span style="font-size:12px;color:var(--text-muted)">${t('ideas.keywordAnalyzing')}</span>`;
     videosContainer.innerHTML = '';
 
     try {
         const res = await fetch(`/api/youtube/keyword-suggestions?q=${encodeURIComponent(keyword)}`);
         if (!res.ok) {
-            let msg = '키워드 분석에 실패했습니다';
+            let msg = t('misc.searchFail');
             try { const err = await res.json(); msg = err.error || msg; } catch {}
             throw new Error(msg);
         }
         const suggestions = await res.json();
         renderKeywordSuggestions(suggestions, keyword);
     } catch (err) {
-        chipsContainer.innerHTML = `<span style="font-size:12px;color:var(--red)">오류: ${escapeHtml(err.message)}</span>`;
+        chipsContainer.innerHTML = `<span style="font-size:12px;color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</span>`;
     }
 }
 
@@ -2344,7 +2440,7 @@ function renderKeywordSuggestions(suggestions, originalKeyword) {
     const chipsContainer = document.getElementById('ideasKeywordChips');
 
     if (!suggestions || suggestions.length === 0) {
-        chipsContainer.innerHTML = '<span style="font-size:12px;color:var(--text-muted)">연관 키워드가 없습니다</span>';
+        chipsContainer.innerHTML = `<span style="font-size:12px;color:var(--text-muted)">${t('ideas.keywordEmpty')}</span>`;
         return;
     }
 
@@ -2372,14 +2468,14 @@ function renderKeywordSuggestions(suggestions, originalKeyword) {
 
 async function loadKeywordVideos(keyword) {
     const container = document.getElementById('ideasKeywordVideos');
-    container.innerHTML = '<div class="discover-loading">관련 영상을 검색하는 중...</div>';
+    container.innerHTML = `<div class="discover-loading">${t('ideas.keywordVideoLoading')}</div>`;
 
     try {
         const kwDuration = document.getElementById('ideasKeywordDuration').value;
         const kwDurationParam = kwDuration ? `&videoDuration=${encodeURIComponent(kwDuration)}` : '';
         const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(keyword)}&order=viewCount&maxResults=6&pages=1${kwDurationParam}`);
         if (!res.ok) {
-            let msg = '영상 검색에 실패했습니다';
+            let msg = t('misc.searchFail');
             try { const err = await res.json(); msg = err.error || msg; } catch {}
             throw new Error(msg);
         }
@@ -2387,14 +2483,14 @@ async function loadKeywordVideos(keyword) {
         const videos = data.videos || data;
         renderKeywordVideos(videos, keyword);
     } catch (err) {
-        container.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">오류: ${escapeHtml(err.message)}</p></div>`;
+        container.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</p></div>`;
     }
 }
 
 function renderKeywordVideos(videos, keyword) {
     const container = document.getElementById('ideasKeywordVideos');
     if (!videos || videos.length === 0) {
-        container.innerHTML = '<div class="discover-empty"><p>관련 영상이 없습니다</p></div>';
+        container.innerHTML = `<div class="discover-empty"><p>${t('ideas.keywordVideoEmpty')}</p></div>`;
         return;
     }
 
@@ -2408,7 +2504,7 @@ function renderKeywordVideos(videos, keyword) {
                 <div class="ideas-keyword-video-meta">${escapeHtml(v.channelTitle)} · 👁 ${formatNumber(v.viewCount)} · ${timeAgo}</div>
                 ${velocityBadgeHtml(v)}
                 <div class="ideas-keyword-video-actions">
-                    <button class="btn btn-primary ideas-save-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}' data-source="keyword" data-keyword="${escapeHtml(keyword)}">아이디어로 저장</button>
+                    <button class="btn btn-primary ideas-save-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}' data-source="keyword" data-keyword="${escapeHtml(keyword)}">${t('ideas.saveAsIdea')}</button>
                 </div>
             </div>
         </div>`;
@@ -2425,13 +2521,13 @@ function renderKeywordVideos(videos, keyword) {
 function saveAsIdea(video, source, keyword) {
     const videoUrl = `https://www.youtube.com/watch?v=${video.id}`;
     if (state.contents.find(c => c.memo && c.memo.includes(videoUrl))) {
-        toast('이미 아이디어로 저장된 영상입니다');
+        toast(t('toast.ideaAlready'));
         return;
     }
 
-    const sourceLabel = source === 'trending' ? '트렌드' : source === 'outlier' ? `아웃라이어: ${keyword}` : `키워드: ${keyword}`;
-    const outlierInfo = source === 'outlier' && video.outlierScore ? `\n아웃라이어: ${video.outlierScore}x (채널 중앙값 ${formatNumber(video.channelMedianViews || 0)})` : '';
-    const memo = `[${sourceLabel}에서 발견]\nURL: ${videoUrl}\n채널: ${video.channelTitle}\n조회수: ${formatNumber(video.viewCount)}${video.subscriberCount ? '\n구독자: ' + formatNumber(video.subscriberCount) : ''}${outlierInfo}`;
+    const sourceLabel = source === 'trending' ? t('idea.sourceTrend') : source === 'outlier' ? t('idea.sourceOutlier', { keyword }) : t('idea.sourceKeyword', { keyword });
+    const outlierInfo = source === 'outlier' && video.outlierScore ? `\n${t('outlier.thisVideo')}: ${video.outlierScore}x (${t('outlier.channelMedian')} ${formatNumber(video.channelMedianViews || 0)})` : '';
+    const memo = `${t('idea.sourceLabel', { source: sourceLabel })}\nURL: ${videoUrl}\n${video.channelTitle}\n${t('misc.views')}: ${formatNumber(video.viewCount)}${video.subscriberCount ? '\n' + t('channel.subscribers') + ': ' + formatNumber(video.subscriberCount) : ''}${outlierInfo}`;
 
     const newContent = {
         id: generateId(),
@@ -2451,7 +2547,7 @@ function saveAsIdea(video, source, keyword) {
     state.contents.push(newContent);
     saveContents();
     renderKanban();
-    toast('아이디어로 저장되었습니다');
+    toast(t('toast.ideaSaved'));
 }
 
 function formatRelativeTime(dateStr) {
@@ -2466,13 +2562,13 @@ function formatRelativeTime(dateStr) {
     const diffMonth = Math.floor(diffDay / 30);
     const diffYear = Math.floor(diffDay / 365);
 
-    if (diffYear > 0) return `${diffYear}년 전`;
-    if (diffMonth > 0) return `${diffMonth}개월 전`;
-    if (diffWeek > 0) return `${diffWeek}주 전`;
-    if (diffDay > 0) return `${diffDay}일 전`;
-    if (diffHour > 0) return `${diffHour}시간 전`;
-    if (diffMin > 0) return `${diffMin}분 전`;
-    return '방금 전';
+    if (diffYear > 0) return t('time.yearsAgo', { n: diffYear });
+    if (diffMonth > 0) return t('time.monthsAgo', { n: diffMonth });
+    if (diffWeek > 0) return t('time.weeksAgo', { n: diffWeek });
+    if (diffDay > 0) return t('time.daysAgo', { n: diffDay });
+    if (diffHour > 0) return t('time.hoursAgo', { n: diffHour });
+    if (diffMin > 0) return t('time.minutesAgo', { n: diffMin });
+    return t('time.justNow');
 }
 
 // ===== Velocity (초기 폭발력) =====
@@ -2484,8 +2580,8 @@ function calcVelocity(video) {
     const engagement = video.viewCount > 0 ? Math.round(((video.likeCount || 0) + (video.commentCount || 0)) / video.viewCount * 1000) / 10 : 0;
 
     let level, label, icon;
-    if (score >= 2)       { level = 'explosive'; label = '폭발'; icon = '🔥🔥'; }
-    else if (score >= 0.3) { level = 'hot'; label = '급상승'; icon = '🔥'; }
+    if (score >= 2)       { level = 'explosive'; label = t('velocity.explosive'); icon = '🔥🔥'; }
+    else if (score >= 0.3) { level = 'hot'; label = t('velocity.hot'); icon = '🔥'; }
     else                   { level = 'normal'; label = ''; icon = ''; }
 
     return { viewsPerDay, score, days, level, label, icon, engagement };
@@ -2498,9 +2594,9 @@ function velocityBadgeHtml(video) {
     if (v.level !== 'normal') {
         parts.push(`<span class="velocity-badge ${v.level}">${v.icon} ${v.label}</span>`);
     }
-    parts.push(`<span class="velocity-detail">일평균 ${formatNumber(v.viewsPerDay)}회</span>`);
+    parts.push(`<span class="velocity-detail">${t('velocity.dailyAvg', { n: formatNumber(v.viewsPerDay) })}</span>`);
     if (v.engagement > 0) {
-        parts.push(`<span class="velocity-detail">참여율 ${v.engagement}%</span>`);
+        parts.push(`<span class="velocity-detail">${t('velocity.engagement', { n: v.engagement })}</span>`);
     }
 
     return `<div class="velocity-row">${parts.join('')}</div>`;
@@ -2614,12 +2710,12 @@ function openAddContent(date) {
 function ncNext() {
     if (_ncCurrentStep === 0) {
         const idea = document.getElementById('ncIdea').value.trim();
-        if (idea.length < 2) { toast('아이디어를 2글자 이상 입력해주세요'); document.getElementById('ncIdea').focus(); return; }
+        if (idea.length < 2) { toast(t('nc.ideaMinLength')); document.getElementById('ncIdea').focus(); return; }
         _ncIdeaText = idea;
     }
     if (_ncCurrentStep === 2) {
         const title = document.getElementById('ncTitle').value.trim();
-        if (title.length < 2) { toast('제목을 2글자 이상 입력해주세요'); document.getElementById('ncTitle').focus(); return; }
+        if (title.length < 2) { toast(t('nc.titleMinLength')); document.getElementById('ncTitle').focus(); return; }
     }
 
     if (_ncCurrentStep < NC_TOTAL_STEPS - 1) {
@@ -2658,9 +2754,9 @@ function ncRenderStep() {
     // Update buttons
     const prevBtn = document.getElementById('ncPrevBtn');
     const nextBtn = document.getElementById('ncNextBtn');
-    prevBtn.textContent = _ncCurrentStep === 0 ? '취소' : '이전';
+    prevBtn.textContent = _ncCurrentStep === 0 ? t('nc.nav.cancel') : t('nc.nav.prev');
     const isLast = _ncCurrentStep === NC_TOTAL_STEPS - 1;
-    nextBtn.textContent = isLast ? '완료' : '다음';
+    nextBtn.textContent = isLast ? t('nc.nav.complete') : t('nc.nav.next');
 
     // Step-specific auto actions
     if (_ncCurrentStep === 1) {
@@ -2724,7 +2820,7 @@ async function ncAutoSearch(query) {
         _ncLastSearchResults = Array.isArray(videos) ? videos : [];
         ncRenderRefResults(_ncLastSearchResults);
     } catch (err) {
-        listEl.innerHTML = `<div class="nc-ref-error">검색에 실패했습니다: ${escapeHtml(err.message)}</div>`;
+        listEl.innerHTML = `<div class="nc-ref-error">${t('nc.ref.searchFail', { error: escapeHtml(err.message) })}</div>`;
     } finally {
         loadingEl.style.display = 'none';
     }
@@ -2733,7 +2829,7 @@ async function ncAutoSearch(query) {
 function ncRenderRefResults(videos) {
     const listEl = document.getElementById('ncRefList');
     if (!videos || videos.length === 0) {
-        listEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px">검색 결과가 없습니다</div>';
+        listEl.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px">${t('nc.ref.noResults')}</div>`;
         return;
     }
 
@@ -2744,9 +2840,9 @@ function ncRenderRefResults(videos) {
             <img class="nc-ref-thumb" src="${v.thumbnail}" alt="">
             <div class="nc-ref-info">
                 <div class="nc-ref-title">${escapeHtml(v.title)}</div>
-                <div class="nc-ref-meta">${escapeHtml(v.channelTitle)} · 조회수 ${formatNumber(v.viewCount)}${v.subscriberCount ? ' · 구독자 ' + formatNumber(v.subscriberCount) : ''}</div>
+                <div class="nc-ref-meta">${escapeHtml(v.channelTitle)} · ${t('misc.views')} ${formatNumber(v.viewCount)}${v.subscriberCount ? ' · ' + t('discover.subLabel', { n: formatNumber(v.subscriberCount) }) : ''}</div>
             </div>
-            <button class="nc-ref-select-btn${isSelected ? ' selected' : ''}" data-idx="${i}" title="${isSelected ? '선택 해제' : '선택'}">
+            <button class="nc-ref-select-btn${isSelected ? ' selected' : ''}" data-idx="${i}" title="${isSelected ? '-' : '+'}">
                 ${isSelected ? '✓' : '+'}
             </button>
         </div>`;
@@ -2794,11 +2890,11 @@ function ncRenderTitlePatterns() {
     }
 
     // Render title patterns
-    patternsEl.innerHTML = '<div class="nc-title-patterns-header">참고 제목 패턴</div>' +
-        sourceTitles.slice(0, 6).map(t =>
+    patternsEl.innerHTML = `<div class="nc-title-patterns-header">${t('nc.title.patterns')}</div>` +
+        sourceTitles.slice(0, 6).map(title =>
             `<div class="nc-title-pattern-item">
-                <span class="nc-title-pattern-text">${escapeHtml(t)}</span>
-                <button class="nc-title-pattern-apply" data-title="${escapeHtml(t)}">적용</button>
+                <span class="nc-title-pattern-text">${escapeHtml(title)}</span>
+                <button class="nc-title-pattern-apply" data-title="${escapeHtml(title)}">${t('nc.title.apply')}</button>
             </div>`
         ).join('');
 
@@ -2812,7 +2908,7 @@ function ncRenderTitlePatterns() {
     // Render keyword chips
     const keywords = ncExtractKeywords(sourceTitles);
     if (keywords.length > 0) {
-        keywordsEl.innerHTML = '<div class="nc-keyword-chips-header">자주 쓰인 키워드</div>' +
+        keywordsEl.innerHTML = `<div class="nc-keyword-chips-header">${t('nc.title.keywords')}</div>` +
             keywords.map(w => `<span class="nc-keyword-chip" data-word="${escapeHtml(w)}">${escapeHtml(w)}</span>`).join('');
 
         keywordsEl.querySelectorAll('.nc-keyword-chip').forEach(chip => {
@@ -2850,7 +2946,7 @@ function ncRenderThumbnailStep() {
     const videos = _ncSelectedRefs.length > 0 ? _ncSelectedRefs : _ncLastSearchResults;
 
     if (!videos || videos.length === 0) {
-        gridEl.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px">레퍼런스 영상이 없습니다. 이전 단계에서 영상을 검색해보세요.</div>';
+        gridEl.innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px">${t('nc.thumb.empty')}</div>`;
         return;
     }
 
@@ -2863,7 +2959,7 @@ function ncRenderThumbnailStep() {
                 </div>
             </div>
             <div class="nc-thumb-card-title">${escapeHtml(v.title)}</div>
-            <div class="nc-thumb-card-meta">조회수 ${formatNumber(v.viewCount)}</div>
+            <div class="nc-thumb-card-meta">${t('misc.views')} ${formatNumber(v.viewCount)}</div>
         </div>
     `).join('');
 
@@ -2887,7 +2983,7 @@ function ncRenderThumbPreview(video) {
             <img src="${video.thumbnail.replace('mqdefault', 'maxresdefault').replace('hqdefault', 'maxresdefault')}" alt="">
             <div class="nc-thumb-enlarged-info">
                 <div class="nc-thumb-enlarged-title">${escapeHtml(video.title)}</div>
-                <div class="nc-thumb-enlarged-meta">${escapeHtml(video.channelTitle || '')} · 조회수 ${formatNumber(video.viewCount)}</div>
+                <div class="nc-thumb-enlarged-meta">${escapeHtml(video.channelTitle || '')} · ${t('misc.views')} ${formatNumber(video.viewCount)}</div>
             </div>
             <button class="nc-thumb-enlarged-close">&times;</button>
         </div>
@@ -2905,29 +3001,29 @@ function ncUpdateReviewCard() {
     const platform = document.querySelector('input[name="ncPlatform"]:checked')?.value || 'youtube';
     const contentType = document.querySelector('input[name="ncType"]:checked')?.value || 'long';
     const date = document.getElementById('ncDate').value;
-    const platformLabels = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', blog: 'Blog', other: '기타' };
+    const platformLabels = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', blog: 'Blog', other: t('platform.other') };
 
     document.getElementById('ncReviewTitle').textContent = title || '-';
     document.getElementById('ncReviewPlatform').textContent = platformLabels[platform] || platform;
     document.getElementById('ncReviewType').textContent = typeLabels[contentType] || contentType;
-    document.getElementById('ncReviewDate').textContent = date || '미정';
+    document.getElementById('ncReviewDate').textContent = date || t('nc.review.dateNone');
     document.getElementById('ncReviewRefs').textContent = _ncSelectedRefs.length > 0
-        ? _ncSelectedRefs.length + '개 선택됨'
-        : '없음';
+        ? t('nc.review.refsSelected', { n: _ncSelectedRefs.length })
+        : t('nc.review.refsNone');
 
     // Thumbnail summary
     const thumbText = document.getElementById('ncThumbText').value.trim();
     const thumbStyle = document.querySelector('#ncThumbStyleGrid .nc-thumb-style-card.active')?.dataset.value || '';
-    const styleLabels = { 'bold-white': '굵은 흰색', 'yellow-highlight': '노란 강조', 'red-bg': '빨간 배경', 'outline': '아웃라인', 'gradient': '그라디언트' };
+    const styleLabels = { 'bold-white': t('nc.thumb.styleBoldWhite'), 'yellow-highlight': t('nc.thumb.styleYellow'), 'red-bg': t('nc.thumb.styleRed'), 'outline': t('nc.thumb.styleOutline'), 'gradient': t('nc.thumb.styleGradient') };
     const thumbParts = [];
     if (thumbText) thumbParts.push(`"${thumbText}"`);
     if (thumbStyle) thumbParts.push(styleLabels[thumbStyle] || thumbStyle);
-    document.getElementById('ncReviewThumb').textContent = thumbParts.length > 0 ? thumbParts.join(' · ') : '미설정';
+    document.getElementById('ncReviewThumb').textContent = thumbParts.length > 0 ? thumbParts.join(' · ') : t('nc.review.thumbNone');
 }
 
 function ncSave() {
     const title = document.getElementById('ncTitle').value.trim();
-    if (!title) { toast('제목을 입력해주세요'); return; }
+    if (!title) { toast(t('toast.titleRequired')); return; }
 
     const platform = document.querySelector('input[name="ncPlatform"]:checked').value;
     const contentType = document.querySelector('input[name="ncType"]:checked').value;
@@ -2936,7 +3032,7 @@ function ncSave() {
     // Append reference URLs to memo
     if (_ncSelectedRefs.length > 0) {
         const refLines = _ncSelectedRefs.map(r => `- ${r.title}\n  https://www.youtube.com/watch?v=${r.videoId}`).join('\n');
-        const refSection = `\n\n[참고 레퍼런스]\n${refLines}`;
+        const refSection = `\n\n[${t('nav.references')}]\n${refLines}`;
         memo = memo ? memo + refSection : refSection.trim();
     }
 
@@ -2967,7 +3063,7 @@ function ncSave() {
 
     state.contents.push(data);
     saveContents();
-    toast('콘텐츠가 추가되었습니다');
+    toast(t('toast.contentAdded'));
     renderAll();
     switchTab('kanban');
 }
@@ -3047,7 +3143,7 @@ function setupAdDetect() {
 
 function submitAdSearch() {
     const keyword = document.getElementById('addetectKeyword').value.trim();
-    if (!keyword) { toast('브랜드명을 입력하세요'); return; }
+    if (!keyword) { toast(t('toast.brandRequired')); return; }
     const strategy = document.getElementById('addetectStrategy').value;
     performAdSearch(keyword, strategy);
 }
@@ -3059,7 +3155,7 @@ async function performAdSearch(brand, strategy) {
     const brandsEl = document.getElementById('addetectBrands');
     const channelsSection = document.getElementById('addetectChannelsSection');
 
-    grid.innerHTML = `<div class="discover-loading">"${escapeHtml(brand)}" 광고 캠페인 검색 중...</div>`;
+    grid.innerHTML = `<div class="discover-loading">${t('ad.searching', { brand: escapeHtml(brand) })}</div>`;
     summary.style.display = 'none';
     filterRow.style.display = 'none';
     brandsEl.innerHTML = '';
@@ -3076,7 +3172,7 @@ async function performAdSearch(brand, strategy) {
             const query = suffix ? `${brand} ${suffix}` : brand;
             const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query)}&order=relevance&maxResults=12&pages=2`);
             if (!res.ok) {
-                let msg = '검색에 실패했습니다';
+                let msg = t('misc.searchFail');
                 try { const err = await res.json(); msg = err.error || msg; } catch {}
                 throw new Error(msg);
             }
@@ -3105,7 +3201,7 @@ async function performAdSearch(brand, strategy) {
         summary.style.display = '';
         filterRow.style.display = '';
     } catch (err) {
-        grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">오류: ${escapeHtml(err.message)}</p></div>`;
+        grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</p></div>`;
     }
 }
 
@@ -3149,8 +3245,8 @@ function renderAdChannels() {
     list.innerHTML = channels.map(ch => `
         <div class="addetect-channel-item" data-channel-id="${ch.channelId}">
             <div class="addetect-channel-name">${escapeHtml(ch.channelTitle)}</div>
-            <span class="addetect-channel-subs">${formatNumber(ch.subscriberCount)}명</span>
-            <span class="addetect-channel-count">${ch.adCount}건</span>
+            <span class="addetect-channel-subs">${formatNumber(ch.subscriberCount)}</span>
+            <span class="addetect-channel-count">${ch.adCount}</span>
         </div>
     `).join('');
 
@@ -3186,7 +3282,7 @@ function renderAdBrandChips() {
     const brands = Object.values(brandMap).sort((a, b) => b.count - a.count);
     if (brands.length === 0) { brandsEl.innerHTML = ''; return; }
 
-    brandsEl.innerHTML = '<span style="font-size:12px;color:var(--text-muted);margin-right:4px">관련 링크:</span>' +
+    brandsEl.innerHTML = `<span style="font-size:12px;color:var(--text-muted);margin-right:4px">${t('ad.relatedLinks')}</span>` +
         brands.map(b =>
             `<a class="addetect-brand-chip" href="${escapeHtml(b.url)}" target="_blank" rel="noopener">${escapeHtml(b.domain)}<span class="brand-count">${b.count}</span></a>`
         ).join('');
@@ -3211,17 +3307,18 @@ function renderAdDetectResults() {
 
     if (items.length === 0) {
         const msg = _adDetectFilter === 'ad'
-            ? `"${escapeHtml(_adDetectBrandName)}"의 광고 영상이 감지되지 않았습니다`
-            : '조건에 맞는 영상이 없습니다';
+            ? t('ad.noAdDetected', { brand: escapeHtml(_adDetectBrandName) })
+            : t('ad.noMatch');
         grid.innerHTML = `<div class="discover-empty"><p>${msg}</p></div>`;
         return;
     }
 
     grid.innerHTML = items.map(r => {
         const v = r.video;
-        const date = new Date(v.publishedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
+        const dateLocale = getLang() === 'en' ? 'en-US' : 'ko-KR';
+        const date = new Date(v.publishedAt).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
         const adBadge = r.isAd
-            ? `<span class="ad-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>광고</span>`
+            ? `<span class="ad-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>${t('ad.adBadge')}</span>`
             : '';
 
         let brandInfo = '';
@@ -3232,8 +3329,8 @@ function renderAdDetectResults() {
             ).join('');
             brandInfo = `
                 <div class="ad-brand-info">
-                    <div class="ad-brand-info-title">광고 감지</div>
-                    <div class="ad-brand-info-keywords">매칭: ${keywordsStr}</div>
+                    <div class="ad-brand-info-title">${t('ad.adDetected')}</div>
+                    <div class="ad-brand-info-keywords">${t('ad.matchLabel')}${keywordsStr}</div>
                     ${r.brands.length > 0 ? `<div class="ad-brand-info-domains">${domainsHtml}</div>` : ''}
                 </div>`;
         }
@@ -3246,7 +3343,7 @@ function renderAdDetectResults() {
             </div>
             <div class="addetect-card-body">
                 <div class="addetect-card-title">${escapeHtml(v.title)}</div>
-                <div class="addetect-card-channel">${escapeHtml(v.channelTitle)}${v.subscriberCount ? ' · ' + formatNumber(v.subscriberCount) + '명' : ''}</div>
+                <div class="addetect-card-channel">${escapeHtml(v.channelTitle)}${v.subscriberCount ? ' · ' + formatNumber(v.subscriberCount) : ''}</div>
                 <div class="addetect-card-stats">
                     <span>👁 ${formatNumber(v.viewCount)}</span>
                     <span>👍 ${formatNumber(v.likeCount)}</span>
@@ -3256,7 +3353,7 @@ function renderAdDetectResults() {
                 ${brandInfo}
             </div>
             <div class="addetect-card-actions">
-                <button class="btn btn-secondary addetect-ref-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>레퍼런스 저장</button>
+                <button class="btn btn-secondary addetect-ref-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>${t('discover.saveRef')}</button>
             </div>
         </div>`;
     }).join('');
@@ -3282,20 +3379,20 @@ function setupOutlierFinder() {
 
 async function performOutlierSearch() {
     const keyword = document.getElementById('outlierKeyword').value.trim();
-    if (!keyword) { toast('키워드를 입력하세요'); return; }
+    if (!keyword) { toast(t('toast.keywordRequired')); return; }
 
     const minScore = document.getElementById('outlierMinScore').value;
     const grid = document.getElementById('outlierGrid');
     const summary = document.getElementById('outlierSummary');
 
     _lastOutlierKeyword = keyword;
-    grid.innerHTML = `<div class="discover-loading">"${escapeHtml(keyword)}" 아웃라이어 분석 중... (채널별 영상을 분석하므로 잠시 걸릴 수 있습니다)</div>`;
+    grid.innerHTML = `<div class="discover-loading">${t('outlier.searching', { keyword: escapeHtml(keyword) })}</div>`;
     summary.style.display = 'none';
 
     try {
         const res = await fetch(`/api/youtube/outliers?q=${encodeURIComponent(keyword)}&maxResults=10&minOutlierScore=${encodeURIComponent(minScore)}`);
         if (!res.ok) {
-            let msg = '아웃라이어 분석에 실패했습니다';
+            let msg = t('misc.searchFail');
             try { const err = await res.json(); msg = err.error || msg; } catch {}
             throw new Error(msg);
         }
@@ -3308,7 +3405,7 @@ async function performOutlierSearch() {
         }
         renderOutlierResults(_outlierResults);
     } catch (err) {
-        grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">오류: ${escapeHtml(err.message)}</p></div>`;
+        grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</p></div>`;
     }
 }
 
@@ -3335,12 +3432,13 @@ function renderOutlierResults(videos) {
     const grid = document.getElementById('outlierGrid');
 
     if (!videos || videos.length === 0) {
-        grid.innerHTML = `<div class="discover-empty"><p>조건에 맞는 아웃라이어 영상이 없습니다</p><p style="font-size:12px;color:var(--text-muted);margin-top:4px">최소 배수를 낮추거나 다른 키워드로 검색해보세요</p></div>`;
+        grid.innerHTML = `<div class="discover-empty"><p>${t('outlier.noResults')}</p><p style="font-size:12px;color:var(--text-muted);margin-top:4px">${t('outlier.noResultsHint')}</p></div>`;
         return;
     }
 
     grid.innerHTML = videos.map(v => {
-        const date = new Date(v.publishedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' });
+        const dateLocale = getLang() === 'en' ? 'en-US' : 'ko-KR';
+        const date = new Date(v.publishedAt).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
         const scoreClass = getOutlierScoreClass(v.outlierScore);
         const barMaxWidth = 100;
         const medianBarWidth = v.viewCount > 0 ? Math.min((v.channelMedianViews / v.viewCount) * barMaxWidth, barMaxWidth) : 0;
@@ -3362,11 +3460,11 @@ function renderOutlierResults(videos) {
                 </div>
                 <div class="outlier-comparison">
                     <div class="outlier-comparison-row">
-                        <span class="outlier-comparison-label">이 영상</span>
+                        <span class="outlier-comparison-label">${t('outlier.thisVideo')}</span>
                         <span class="outlier-comparison-value">${formatNumber(v.viewCount)}</span>
                     </div>
                     <div class="outlier-comparison-row">
-                        <span class="outlier-comparison-label">채널 중앙값</span>
+                        <span class="outlier-comparison-label">${t('outlier.channelMedian')}</span>
                         <span class="outlier-comparison-value">${formatNumber(v.channelMedianViews)}</span>
                     </div>
                     <div class="outlier-bar-wrap">
@@ -3374,12 +3472,12 @@ function renderOutlierResults(videos) {
                         <div class="outlier-bar-this" style="width:${thisBarWidth}%"></div>
                     </div>
                 </div>
-                <div class="discover-card-sub">구독자 ${formatNumber(v.subscriberCount)} · 채널 영상 ${v.channelVideoCount}개</div>
+                <div class="discover-card-sub">${t('discover.subLabel', { n: formatNumber(v.subscriberCount) })} · ${t('outlier.channelVideos', { n: v.channelVideoCount })}</div>
                 <div class="discover-card-date">${date}</div>
             </div>
             <div class="discover-card-actions">
-                <button class="btn btn-secondary discover-ref-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>레퍼런스 저장</button>
-                <button class="btn btn-primary outlier-idea-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>아이디어 저장</button>
+                <button class="btn btn-secondary discover-ref-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>${t('outlier.saveRef')}</button>
+                <button class="btn btn-primary outlier-idea-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>${t('outlier.saveIdea')}</button>
             </div>
         </div>`;
     }).join('');
@@ -3397,4 +3495,33 @@ function renderOutlierResults(videos) {
             saveAsIdea(video, 'outlier', _lastOutlierKeyword);
         });
     });
+}
+
+// ===== Language Switcher =====
+function setupLangSwitcher() {
+    const switcher = document.getElementById('langSwitcher');
+    if (!switcher) return;
+    // set initial active state
+    switcher.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === getLang());
+        btn.addEventListener('click', () => {
+            if (btn.dataset.lang === getLang()) return;
+            setLang(btn.dataset.lang);
+            switcher.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === getLang()));
+            applyLanguageSwitch();
+            toast(t('toast.langChanged'));
+        });
+    });
+}
+
+function applyLanguageSwitch() {
+    applyI18nToDOM();
+    updateTodayDate();
+    // re-render header for current tab
+    const info = getNavTitle(state.currentTab);
+    document.getElementById('pageTitle').textContent = info.title;
+    document.getElementById('pageDesc').textContent = info.desc;
+    renderAll();
+    if (state.currentTab === 'references') renderReferences();
+    if (state.currentTab === 'ideas') loadTrendingVideos();
 }
