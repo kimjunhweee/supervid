@@ -51,6 +51,11 @@ async function loadDataFromServer() {
             return;
         }
 
+        // 스칼라 값은 항상 서버 우선 적용
+        if (data.upload_goal) localStorage.setItem('creatorhub_upload_goal', data.upload_goal);
+        if (data.weekly_goal) localStorage.setItem('creatorhub_weekly_goal', data.weekly_goal);
+        if (data.yt_channel) localStorage.setItem('creatorhub_yt_channel', data.yt_channel);
+
         const hasServerData = data.contents && data.contents.length > 0;
         const hasLocalContents = state.contents.length > 0;
 
@@ -59,9 +64,6 @@ async function loadDataFromServer() {
             if (data.contents) { state.contents = data.contents; localStorage.setItem('creatorhub_contents', JSON.stringify(data.contents)); }
             if (data.refs) { state.references = data.refs; localStorage.setItem('creatorhub_references', JSON.stringify(data.refs)); }
             if (data.ref_folders) { state.refFolders = data.ref_folders; localStorage.setItem('creatorhub_ref_folders', JSON.stringify(data.ref_folders)); }
-            if (data.upload_goal) localStorage.setItem('creatorhub_upload_goal', data.upload_goal);
-            if (data.weekly_goal) localStorage.setItem('creatorhub_weekly_goal', data.weekly_goal);
-            if (data.yt_channel) localStorage.setItem('creatorhub_yt_channel', data.yt_channel);
         } else if (hasLocalContents) {
             // 서버 비어있고 localStorage에 데이터 있음 → 마이그레이션
             await fetch('/api/data', {
