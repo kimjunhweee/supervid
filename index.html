@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supervid</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
     <link rel="stylesheet" href="styles.css">
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -77,6 +78,15 @@
             </div>
         </ul>
         <div class="sidebar-footer">
+            <a class="sidebar-yt-link" id="sidebarYtLink" href="#" target="_blank" rel="noopener" style="display:none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 00.5 6.2 31.3 31.3 0 000 12a31.3 31.3 0 00.5 5.8 3 3 0 002.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 002.1-2.1A31.3 31.3 0 0024 12a31.3 31.3 0 00-.5-5.8zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z"/></svg>
+                <span data-i18n="nav.myChannel">내 채널</span>
+            </a>
+            <a class="sidebar-yt-link" id="sidebarStudioLink" href="#" target="_blank" rel="noopener" style="display:none">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                <span data-i18n="nav.studio">YouTube Studio</span>
+            </a>
+
             <div class="nav-user" id="navUser" style="display:none">
                 <button class="nav-user-trigger" id="navUserTrigger">
                     <img class="nav-user-avatar" id="userAvatar" src="" alt="">
@@ -97,7 +107,7 @@
                     </div>
                     <div class="nav-user-dropdown-sep"></div>
                     <button class="nav-user-dropdown-item" id="myPageBtn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4-4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         <span data-i18n="nav.mypage">마이페이지</span>
                     </button>
                     <button class="nav-user-dropdown-item" id="logoutBtn">
@@ -124,7 +134,7 @@
                 </div>
             </div>
             <div class="header-right">
-                <button class="header-add-btn" id="headerAddBtn" data-i18n="header.newContent">+ 새 콘텐츠</button>
+                <button class="header-add-btn" id="headerAddBtn">+ <span data-i18n="header.newContent">새 콘텐츠</span></button>
                 <button class="theme-toggle" id="themeToggle">
                     <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
                     <svg class="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
@@ -331,32 +341,17 @@
 
                 <!-- 연동 후: 채널 통계 -->
                 <div class="yt-stats-grid" id="ytStats" style="display:none">
-                    <div class="stat-card">
-                        <div class="stat-icon red">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-number" id="ytSubscribers">-</span>
-                            <span class="stat-label" data-i18n="yt.subscribers">구독자</span>
-                        </div>
+                    <div class="stat-card stat-card-minimal">
+                        <span class="stat-label" data-i18n="yt.subscribers">구독자</span>
+                        <span class="stat-number" id="ytSubscribers">-</span>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon purple">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-number" id="ytTotalViews">-</span>
-                            <span class="stat-label" data-i18n="yt.totalViews">총 조회수</span>
-                        </div>
+                    <div class="stat-card stat-card-minimal">
+                        <span class="stat-label" data-i18n="yt.totalViews">총 조회수</span>
+                        <span class="stat-number" id="ytTotalViews">-</span>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon blue">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23,7 16,12 23,17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
-                        </div>
-                        <div class="stat-info">
-                            <span class="stat-number" id="ytVideoCount">-</span>
-                            <span class="stat-label" data-i18n="yt.totalVideos">총 영상</span>
-                        </div>
+                    <div class="stat-card stat-card-minimal">
+                        <span class="stat-label" data-i18n="yt.totalVideos">총 영상</span>
+                        <span class="stat-number" id="ytVideoCount">-</span>
                     </div>
                 </div>
 
