@@ -113,6 +113,15 @@ body {
 .sidebar.collapsed .lab-submenu .menu-item { padding-left: 0; justify-content: center; padding: 10px; }
 
 .sidebar-footer { padding: 8px; position: relative; }
+.sidebar-yt-link {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary);
+    font-size: 13.5px; font-weight: 500; transition: all var(--transition);
+    margin-bottom: 2px; text-decoration: none; width: 100%;
+}
+.sidebar-yt-link:hover { background: var(--bg-hover); color: var(--text-primary); }
+.sidebar.collapsed .sidebar-yt-link span { display: none; }
+.sidebar.collapsed .sidebar-yt-link { justify-content: center; padding: 10px; }
 
 /* ===== Nav User (shadcn NavUser) ===== */
 .nav-user { position: relative; }
@@ -1917,6 +1926,8 @@ body.sidebar-collapsed .main-content { margin: var(--inset-gap) var(--inset-gap)
     .sidebar .sidebar-logo { justify-content: center; padding: 16px 12px; }
     .sidebar .logo-icon { margin: 0; }
     .sidebar .menu-item { justify-content: center; padding: 10px; }
+    .sidebar .sidebar-yt-link { justify-content: center; padding: 10px; }
+    .sidebar .sidebar-yt-link span { display: none; }
     .sidebar .lab-toggle .lab-chevron { display: none; }
     .sidebar .lab-submenu .menu-item { padding-left: 0; }
     :root { --content-px: 16px; }
