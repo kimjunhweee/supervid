@@ -217,6 +217,12 @@ app.get('/api/youtube/channel', requireAuth, async (req, res) => {
     const { channelId } = req.query;
     if (!channelId) return res.status(400).json({ error: 'channelId가 필요합니다' });
 
+    const cacheKey = `channel:${channelId}`;
+    if (!req.query.refresh) {
+        const cached = await getCached(cacheKey);
+        if (cached) return res.json(cached);
+    }
+
     try {
         const response = await fetch(
             `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${encodeURIComponent(channelId)}&key=${API_KEY}`
@@ -228,22 +234,32 @@ app.get('/api/youtube/channel', requireAuth, async (req, res) => {
         if (!data.items || data.items.length === 0) return res.status(404).json({ error: '채널을 찾을 수 없습니다' });
 
         const channel = data.items[0];
-        res.json({
+        const result = {
             title: channel.snippet.title,
             thumbnail: channel.snippet.thumbnails.default.url,
             subscriberCount: parseInt(channel.statistics.subscriberCount),
             viewCount: parseInt(channel.statistics.viewCount),
             videoCount: parseInt(channel.statistics.videoCount)
-        });
+        };
+        await setCache(cacheKey, result, CH_AVG_CACHE_TTL); // 2시간
+        res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 // ===== 최근 영상 목록 =====
+const VIDEOS_CACHE_TTL = 60 * 60 * 1000; // 1시간
+
 app.get('/api/youtube/videos', requireAuth, async (req, res) => {
     const { channelId } = req.query;
     if (!channelId) return res.status(400).json({ error: 'channelId가 필요합니다' });
+
+    const cacheKey = `videos:${channelId}`;
+    if (!req.query.refresh) {
+        const cached = await getCached(cacheKey);
+        if (cached) return res.json(cached);
+    }
 
     try {
         const channelRes = await fetch(
@@ -310,6 +326,7 @@ app.get('/api/youtube/videos', requireAuth, async (req, res) => {
             duration: v.contentDetails ? v.contentDetails.duration : null
         }));
 
+        await setCache(cacheKey, videos, VIDEOS_CACHE_TTL); // 1시간
         res.json(videos);
     } catch (err) {
         res.status(500).json({ error: err.message });

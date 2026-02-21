@@ -39,6 +39,9 @@ const I18N = {
         'login.failUnknown': '알 수 없는 오류',
         'login.error': '로그인 중 오류가 발생했습니다',
         'login.loggedOut': '로그아웃 되었습니다',
+        'login.guest': '로그인 없이 둘러보기',
+        'login.guestBadge': '게스트',
+        'toast.guestRestricted': '이 기능은 로그인 후 사용할 수 있어요',
 
         // === Header ===
         'header.newContent': '새 콘텐츠',
@@ -527,6 +530,9 @@ const I18N = {
         'login.failUnknown': 'Unknown error',
         'login.error': 'An error occurred during login',
         'login.loggedOut': 'You have been logged out',
+        'login.guest': 'Browse without signing in',
+        'login.guestBadge': 'Guest',
+        'toast.guestRestricted': 'Sign in to use this feature',
 
         // === Header ===
         'header.newContent': 'New Content',

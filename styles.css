@@ -1883,6 +1883,18 @@ body {
 .login-desc {
     font-size: 13px; color: var(--text-secondary); text-align: center;
 }
+.guest-mode-btn {
+    background: none; border: none; color: var(--text-secondary);
+    font-size: 13px; cursor: pointer; padding: 4px 8px; border-radius: var(--radius);
+    transition: color 0.15s;
+}
+.guest-mode-btn:hover { color: var(--text-primary); }
+.nav-login-btn {
+    background: none; border: 1px solid var(--border); color: var(--text-secondary);
+    font-size: 12px; cursor: pointer; padding: 6px 10px; border-radius: var(--radius);
+    white-space: nowrap; transition: color 0.15s, border-color 0.15s;
+}
+.nav-login-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
 
 /* ===== Sidebar Collapsed ===== */
 .sidebar.collapsed { width: 56px; }

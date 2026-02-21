@@ -8,7 +8,8 @@ const state = {
     currentTab: 'dashboard',
     calendarDate: new Date(),
     theme: localStorage.getItem('creatorhub_theme') || 'dark',
-    user: null
+    user: null,
+    isGuest: false
 };
 
 const STATUS_ORDER = ['idea', 'scripting', 'filming', 'editing', 'scheduled', 'published'];
@@ -139,6 +140,7 @@ function migrateScriptsToContents() {
 document.addEventListener('DOMContentLoaded', () => {
     applyTheme();
     checkAuth();
+    document.getElementById('guestModeBtn')?.addEventListener('click', enterGuestMode);
 });
 
 let _appInitialized = false;
@@ -193,6 +195,20 @@ async function checkAuth() {
     }
 }
 
+function enterGuestMode() {
+    state.isGuest = true;
+    state.user = null;
+    showApp();
+}
+
+function checkGuestBlock() {
+    if (state.isGuest) {
+        toast(t('toast.guestRestricted'));
+        return true;
+    }
+    return false;
+}
+
 async function showApp() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('sidebar').style.display = '';
@@ -214,11 +230,17 @@ async function showApp() {
         document.getElementById('logoutBtn').onclick = logout;
         setupNavUserDropdown();
         setupMyPageModal();
+    } else if (state.isGuest) {
+        const navUser = document.getElementById('navUser');
+        navUser.style.display = '';
+        navUser.innerHTML = `<button class="nav-login-btn" onclick="showLogin()">${t('login.guestBadge')} · ${t('nav.mypage')} 로그인</button>`;
     }
 
-    await loadDataFromServer();
-    const ytCh = localStorage.getItem('creatorhub_yt_channel');
-    if (ytCh) updateSidebarYtLink(ytCh);
+    if (!state.isGuest) {
+        await loadDataFromServer();
+        const ytCh = localStorage.getItem('creatorhub_yt_channel');
+        if (ytCh) updateSidebarYtLink(ytCh);
+    }
     initApp();
 }
 
@@ -246,6 +268,7 @@ function setupNavUserDropdown() {
 }
 
 function showLogin() {
+    state.isGuest = false;
     document.getElementById('loginScreen').style.display = '';
     document.getElementById('sidebar').style.display = 'none';
     document.getElementById('mainContent').style.display = 'none';
@@ -307,6 +330,7 @@ async function logout() {
         await fetch('/api/auth/logout', { method: 'POST' });
     } catch { /* ignore */ }
     state.user = null;
+    state.isGuest = false;
     showLogin();
     toast(t('login.loggedOut'));
 }
@@ -1247,7 +1271,7 @@ function promptChannelConnect() {
 
 function setupYouTube() {
     document.getElementById('ytConnectBtn').addEventListener('click', promptChannelConnect);
-    document.getElementById('ytRefreshBtn').addEventListener('click', loadYouTubeData);
+    document.getElementById('ytRefreshBtn').addEventListener('click', () => loadYouTubeData(true));
 
     // 대시보드 상단 연동 버튼
     const myChConnectBtn = document.getElementById('myChConnectBtn');
@@ -1293,7 +1317,8 @@ function formatNumber(num) {
     return num.toLocaleString();
 }
 
-async function loadYouTubeData() {
+async function loadYouTubeData(forceRefresh = false) {
+    if (checkGuestBlock()) return;
     const channelId = localStorage.getItem('creatorhub_yt_channel');
     if (!channelId) return;
 
@@ -1305,8 +1330,9 @@ async function loadYouTubeData() {
 
     emptyEl.innerHTML = `<p class="empty-state">${escapeHtml(t('yt.loading'))}</p>`;
 
+    const refreshParam = forceRefresh ? '&refresh=true' : '';
     try {
-        const channelRes = await fetch(`/api/youtube/channel?channelId=${encodeURIComponent(channelId)}`);
+        const channelRes = await fetch(`/api/youtube/channel?channelId=${encodeURIComponent(channelId)}${refreshParam}`);
         if (!channelRes.ok) {
             const err = await channelRes.json();
             throw new Error(err.error || t('misc.searchFail'));
@@ -1338,7 +1364,7 @@ async function loadYouTubeData() {
         if (existingInfo) existingInfo.remove();
         statsEl.insertAdjacentHTML('beforebegin', channelInfoHtml);
 
-        const videosRes = await fetch(`/api/youtube/videos?channelId=${encodeURIComponent(channelId)}`);
+        const videosRes = await fetch(`/api/youtube/videos?channelId=${encodeURIComponent(channelId)}${refreshParam}`);
         if (videosRes.ok) {
             const videos = await videosRes.json();
             state.ytVideos = videos;
@@ -1755,6 +1781,7 @@ function submitSearch() {
 }
 
 async function performSearch(params, loadMore) {
+    if (checkGuestBlock()) return;
     const grid = document.getElementById('discoverGrid');
     const infoEl = document.getElementById('discoverResultInfo');
     updateActiveFilters(params);
@@ -1942,6 +1969,7 @@ function submitChannelSearch() {
 }
 
 async function performChannelSearch(query, subMin, subMax) {
+    if (checkGuestBlock()) return;
     const grid = document.getElementById('channelGrid');
     const infoEl = document.getElementById('channelResultInfo');
     const hasSubFilter = subMin > 0 || subMax > 0;
@@ -2423,6 +2451,7 @@ function setupIdeas() {
 }
 
 async function loadTrendingVideos(categoryId) {
+    if (checkGuestBlock()) return;
     const grid = document.getElementById('ideasTrendingGrid');
     const selectVal = categoryId !== undefined ? categoryId : document.getElementById('ideasCategorySelect').value;
 
@@ -2502,6 +2531,7 @@ function renderTrendingVideos(videos) {
 }
 
 async function analyzeKeyword() {
+    if (checkGuestBlock()) return;
     const input = document.getElementById('ideasKeywordInput');
     const keyword = input.value.trim();
     if (!keyword) { toast(t('toast.keywordRequired')); return; }
@@ -2871,6 +2901,7 @@ function ncRenderStep() {
 }
 
 async function ncAutoSearch(query) {
+    if (checkGuestBlock()) return;
     if (!query) return;
 
     const loadingEl = document.getElementById('ncRefLoading');
@@ -3238,6 +3269,7 @@ function submitAdSearch() {
 }
 
 async function performAdSearch(brand, strategy) {
+    if (checkGuestBlock()) return;
     const grid = document.getElementById('addetectGrid');
     const summary = document.getElementById('addetectSummary');
     const filterRow = document.getElementById('addetectFilterRow');
@@ -3467,6 +3499,7 @@ function setupOutlierFinder() {
 }
 
 async function performOutlierSearch() {
+    if (checkGuestBlock()) return;
     const keyword = document.getElementById('outlierKeyword').value.trim();
     if (!keyword) { toast(t('toast.keywordRequired')); return; }
 
