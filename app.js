@@ -217,6 +217,8 @@ async function showApp() {
     }
 
     await loadDataFromServer();
+    const ytCh = localStorage.getItem('creatorhub_yt_channel');
+    if (ytCh) updateSidebarYtLink(ytCh);
     initApp();
 }
 
