@@ -20,6 +20,66 @@ const statusLabels = new Proxy({}, { get: (_, k) => getStatusLabel(k) });
 const scriptStatusLabels = new Proxy({}, { get: (_, k) => getScriptStatusLabel(k) });
 const typeLabels = new Proxy({}, { get: (_, k) => getTypeLabel(k) });
 
+// ===== Server Sync =====
+let _syncPatch = {};
+let _syncTimer = null;
+
+function syncToServer(patch) {
+    Object.assign(_syncPatch, patch);
+    clearTimeout(_syncTimer);
+    _syncTimer = setTimeout(async () => {
+        const payload = _syncPatch;
+        _syncPatch = {};
+        try {
+            await fetch('/api/data', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+        } catch { /* 네트워크 실패 시 무시 — localStorage는 이미 저장됨 */ }
+    }, 1000);
+}
+
+async function loadDataFromServer() {
+    try {
+        const res = await fetch('/api/data');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (!data || data.noDb) {
+            // Supabase 미설정 — localStorage 데이터 그대로 사용
+            return;
+        }
+
+        const hasServerData = data.contents && data.contents.length > 0;
+        const hasLocalContents = state.contents.length > 0;
+
+        if (hasServerData) {
+            // 서버 데이터가 있으면 서버 우선
+            if (data.contents) { state.contents = data.contents; localStorage.setItem('creatorhub_contents', JSON.stringify(data.contents)); }
+            if (data.refs) { state.references = data.refs; localStorage.setItem('creatorhub_references', JSON.stringify(data.refs)); }
+            if (data.ref_folders) { state.refFolders = data.ref_folders; localStorage.setItem('creatorhub_ref_folders', JSON.stringify(data.ref_folders)); }
+            if (data.upload_goal) localStorage.setItem('creatorhub_upload_goal', data.upload_goal);
+            if (data.weekly_goal) localStorage.setItem('creatorhub_weekly_goal', data.weekly_goal);
+            if (data.yt_channel) localStorage.setItem('creatorhub_yt_channel', data.yt_channel);
+        } else if (hasLocalContents) {
+            // 서버 비어있고 localStorage에 데이터 있음 → 마이그레이션
+            await fetch('/api/data', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: state.contents,
+                    refs: state.references,
+                    ref_folders: state.refFolders,
+                    upload_goal: parseInt(localStorage.getItem('creatorhub_upload_goal')) || 4,
+                    weekly_goal: parseInt(localStorage.getItem('creatorhub_weekly_goal')) || 1,
+                    yt_channel: localStorage.getItem('creatorhub_yt_channel') || null
+                })
+            });
+        }
+    } catch { /* 실패 시 localStorage 데이터로 정상 동작 */ }
+}
+
 // ===== Data Migration =====
 function migrateScriptsToContents() {
     const scriptsRaw = localStorage.getItem('creatorhub_scripts');
@@ -131,7 +191,7 @@ async function checkAuth() {
     }
 }
 
-function showApp() {
+async function showApp() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('sidebar').style.display = '';
     document.getElementById('mainContent').style.display = '';
@@ -148,12 +208,13 @@ function showApp() {
         document.getElementById('dropdownName').textContent = state.user.name || '';
         document.getElementById('dropdownEmail').textContent = state.user.email || '';
         // Events
-        document.getElementById('logoutBtn').onclick = logout;
         document.getElementById('myPageBtn').onclick = openMyPage;
+        document.getElementById('logoutBtn').onclick = logout;
         setupNavUserDropdown();
         setupMyPageModal();
     }
 
+    await loadDataFromServer();
     initApp();
 }
 
@@ -353,7 +414,7 @@ function updateTodayDate() {
 }
 
 // ===== Data Helpers =====
-function saveContents() { localStorage.setItem('creatorhub_contents', JSON.stringify(state.contents)); }
+function saveContents() { localStorage.setItem('creatorhub_contents', JSON.stringify(state.contents)); syncToServer({ contents: state.contents }); }
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function formatDate(dateStr) { const d = new Date(dateStr); return `${d.getMonth() + 1}/${d.getDate()}`; }
 function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
@@ -1175,6 +1236,8 @@ function promptChannelConnect() {
     const input = prompt(t('yt.channelPrompt'), saved || '');
     if (!input || !input.trim()) return;
     localStorage.setItem('creatorhub_yt_channel', input.trim());
+    syncToServer({ yt_channel: input.trim() });
+    updateSidebarYtLink(input.trim());
     loadYouTubeData();
 }
 
@@ -1188,9 +1251,28 @@ function setupYouTube() {
 
     const channelId = localStorage.getItem('creatorhub_yt_channel');
     if (channelId) {
+        updateSidebarYtLink(channelId);
         loadYouTubeData();
     } else {
         updateMyChannelHero(null);
+    }
+}
+
+function updateSidebarYtLink(channelId) {
+    const link = document.getElementById('sidebarYtLink');
+    const studioLink = document.getElementById('sidebarStudioLink');
+    if (channelId) {
+        if (link) {
+            link.href = 'https://www.youtube.com/channel/' + encodeURIComponent(channelId);
+            link.style.display = '';
+        }
+        if (studioLink) {
+            studioLink.href = 'https://studio.youtube.com/channel/' + encodeURIComponent(channelId);
+            studioLink.style.display = '';
+        }
+    } else {
+        if (link) link.style.display = 'none';
+        if (studioLink) studioLink.style.display = 'none';
     }
 }
 
@@ -1582,6 +1664,7 @@ function saveGoalSettings() {
 
     localStorage.setItem('creatorhub_upload_goal', monthlyVal);
     localStorage.setItem('creatorhub_weekly_goal', weeklyVal);
+    syncToServer({ upload_goal: monthlyVal, weekly_goal: weeklyVal });
     updateUploadGoal();
     document.getElementById('goalModal').classList.remove('active');
     toast(t('toast.goalSaved', { monthly: monthlyVal, weekly: weeklyVal }));
@@ -1924,6 +2007,7 @@ function renderChannelResults(channels) {
     grid.querySelectorAll('.channel-connect-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             localStorage.setItem('creatorhub_yt_channel', btn.dataset.id);
+            syncToServer({ yt_channel: btn.dataset.id });
             toast(t('toast.channelConnected'));
             loadYouTubeData();
         });
@@ -1943,7 +2027,7 @@ function saveAsReference(video) {
 }
 
 // ===== References (레퍼런스) =====
-function saveReferences() { localStorage.setItem('creatorhub_references', JSON.stringify(state.references)); }
+function saveReferences() { localStorage.setItem('creatorhub_references', JSON.stringify(state.references)); syncToServer({ refs: state.references }); }
 
 function setupReferences() {
     document.getElementById('refClearAllBtn').addEventListener('click', () => {
@@ -2064,6 +2148,7 @@ function deleteReference(refId) {
 // ===== Reference Folders =====
 function saveRefFolders() {
     localStorage.setItem('creatorhub_ref_folders', JSON.stringify(state.refFolders));
+    syncToServer({ ref_folders: state.refFolders });
 }
 
 function openRefFolderModal() {
@@ -3517,6 +3602,8 @@ function setupLangSwitcher() {
 function applyLanguageSwitch() {
     applyI18nToDOM();
     updateTodayDate();
+    updateUploadGoal();
+    updateLastUploadBanner();
     // re-render header for current tab
     const info = getNavTitle(state.currentTab);
     document.getElementById('pageTitle').textContent = info.title;

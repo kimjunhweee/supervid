@@ -1,29 +1,83 @@
 const express = require('express');
 const cors = require('cors');
-const session = require('express-session');
+const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
+// ===== Supabase 초기화 =====
+let supabase = null;
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        { auth: { persistSession: false } }
+    );
+    console.log('Supabase 연결됨');
+} else {
+    console.log('Supabase 환경변수 없음 — DB 저장 비활성화 (localStorage 모드)');
+}
+
+async function ensureUser(user) {
+    if (!supabase) return;
+    const { error } = await supabase
+        .from('user_data')
+        .upsert(
+            { google_id: user.id, email: user.email, name: user.name },
+            { onConflict: 'google_id', ignoreDuplicates: true }
+        );
+    if (error) console.error('ensureUser 오류:', error.message);
+}
+
+// ===== Supabase 캐시 헬퍼 =====
+const CACHE_TTL = 30 * 60 * 1000;
+const TRENDING_CACHE_TTL = 2 * 60 * 60 * 1000;
+const SUGGEST_CACHE_TTL = 24 * 60 * 60 * 1000;
+const CH_AVG_CACHE_TTL = 2 * 60 * 60 * 1000;
+
+async function getCached(key) {
+    if (!supabase) return null;
+    try {
+        const { data } = await supabase
+            .from('api_cache')
+            .select('data, expires_at')
+            .eq('key', key)
+            .single();
+        if (!data) return null;
+        if (new Date(data.expires_at) < new Date()) return null;
+        return data.data;
+    } catch { return null; }
+}
+
+async function setCache(key, value, ttlMs = CACHE_TTL) {
+    if (!supabase) return;
+    try {
+        const expires_at = new Date(Date.now() + ttlMs).toISOString();
+        await supabase
+            .from('api_cache')
+            .upsert({ key, data: value, expires_at }, { onConflict: 'key' });
+    } catch { /* ignore */ }
+}
+
+// ===== Express 앱 =====
 const app = express();
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
-
-// Session 설정
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'supercontent-secret-key-' + Math.random().toString(36),
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        httpOnly: true,
-        secure: false, // localhost에서는 false
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7일
-    }
-}));
-
-// 정적 파일 (인증 불필요 — 로그인 화면도 여기에 포함)
+app.use(cookieParser());
 app.use(express.static('.'));
 
+const JWT_SECRET = process.env.JWT_SECRET || 'supervid-jwt-fallback-secret';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const API_KEY = process.env.YOUTUBE_API_KEY;
+
+const COOKIE_OPTS = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+};
 
 // ===== API 사용량 추적 =====
 const API_DAILY_LIMIT = 10000;
@@ -40,28 +94,12 @@ function trackUnits(category, units) {
     apiUsage.breakdown[category] = (apiUsage.breakdown[category] || 0) + units;
 }
 
-// ===== 검색 결과 캐시 =====
-const searchCache = new Map();
-const CACHE_TTL = 30 * 60 * 1000;
+// ===== 인증 라우트 =====
 
-setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of searchCache) {
-        const ttl = entry.ttl || CACHE_TTL;
-        if (now - entry.time > ttl) searchCache.delete(key);
-    }
-}, 5 * 60 * 1000);
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
-
-// 클라이언트에 Google Client ID 전달
 app.get('/api/config', (req, res) => {
     res.json({ googleClientId: GOOGLE_CLIENT_ID });
 });
 
-// ===== 인증 라우트 =====
-
-// Google ID 토큰 검증 → 세션 생성
 app.post('/api/auth/google', async (req, res) => {
     const { credential } = req.body;
     if (!credential) return res.status(400).json({ error: '토큰이 필요합니다' });
@@ -72,45 +110,92 @@ app.post('/api/auth/google', async (req, res) => {
             audience: GOOGLE_CLIENT_ID
         });
         const payload = ticket.getPayload();
-
-        req.session.user = {
+        const user = {
             id: payload.sub,
             email: payload.email,
             name: payload.name,
             picture: payload.picture
         };
 
-        res.json({ user: req.session.user });
+        await ensureUser(user);
+        const token = jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });
+        res.cookie('auth_token', token, COOKIE_OPTS);
+        res.json({ user });
     } catch (err) {
         res.status(401).json({ error: '토큰 검증 실패: ' + err.message });
     }
 });
 
-// 현재 로그인 사용자 반환
-app.get('/api/auth/me', (req, res) => {
-    if (req.session.user) {
-        res.json({ user: req.session.user });
-    } else {
+app.get('/api/auth/me', async (req, res) => {
+    const token = req.cookies.auth_token;
+    if (!token) return res.status(401).json({ error: '로그인이 필요합니다' });
+    try {
+        const user = jwt.verify(token, JWT_SECRET);
+        await ensureUser(user);
+        res.json({ user });
+    } catch {
         res.status(401).json({ error: '로그인이 필요합니다' });
     }
 });
 
-// 로그아웃
 app.post('/api/auth/logout', (req, res) => {
-    req.session.destroy(err => {
-        if (err) return res.status(500).json({ error: '로그아웃 실패' });
-        res.clearCookie('connect.sid');
-        res.json({ success: true });
-    });
+    res.clearCookie('auth_token');
+    res.json({ success: true });
 });
 
-// ===== 인증 미들웨어 (YouTube API 보호) =====
+// ===== 인증 미들웨어 =====
 function requireAuth(req, res, next) {
-    if (req.session && req.session.user) return next();
-    res.status(401).json({ error: '로그인이 필요합니다' });
+    const token = req.cookies.auth_token;
+    if (!token) return res.status(401).json({ error: '로그인이 필요합니다' });
+    try {
+        req.user = jwt.verify(token, JWT_SECRET);
+        next();
+    } catch {
+        res.status(401).json({ error: '로그인이 필요합니다' });
+    }
 }
 
-// API 사용량 조회
+// ===== 사용자 데이터 저장/로드 =====
+
+app.get('/api/data', requireAuth, async (req, res) => {
+    if (!supabase) return res.json({ noDb: true });
+
+    const { data, error } = await supabase
+        .from('user_data')
+        .select('contents, refs, ref_folders, upload_goal, weekly_goal, yt_channel, updated_at')
+        .eq('google_id', req.user.id)
+        .single();
+
+    if (error) {
+        if (error.code === 'PGRST116') return res.json(null);
+        return res.status(500).json({ error: error.message });
+    }
+    res.json(data);
+});
+
+app.put('/api/data', requireAuth, async (req, res) => {
+    if (!supabase) return res.json({ noDb: true });
+
+    const allowed = ['contents', 'refs', 'ref_folders', 'upload_goal', 'weekly_goal', 'yt_channel'];
+    const patch = {};
+    for (const key of allowed) {
+        if (req.body[key] !== undefined) patch[key] = req.body[key];
+    }
+
+    if (Object.keys(patch).length === 0) return res.status(400).json({ error: '변경할 데이터가 없습니다' });
+
+    patch.google_id = req.user.id;
+    patch.updated_at = new Date().toISOString();
+
+    const { error } = await supabase
+        .from('user_data')
+        .upsert(patch, { onConflict: 'google_id' });
+
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ ok: true });
+});
+
+// ===== API 사용량 조회 =====
 app.get('/api/youtube/usage', requireAuth, (req, res) => {
     const today = new Date().toISOString().slice(0, 10);
     if (apiUsage.date !== today) {
@@ -127,7 +212,7 @@ app.get('/api/youtube/usage', requireAuth, (req, res) => {
     });
 });
 
-// 채널 통계 가져오기
+// ===== 채널 통계 =====
 app.get('/api/youtube/channel', requireAuth, async (req, res) => {
     const { channelId } = req.query;
     if (!channelId) return res.status(400).json({ error: 'channelId가 필요합니다' });
@@ -155,13 +240,12 @@ app.get('/api/youtube/channel', requireAuth, async (req, res) => {
     }
 });
 
-// 최근 영상 목록 + 통계 가져오기
+// ===== 최근 영상 목록 =====
 app.get('/api/youtube/videos', requireAuth, async (req, res) => {
     const { channelId } = req.query;
     if (!channelId) return res.status(400).json({ error: 'channelId가 필요합니다' });
 
     try {
-        // 업로드 재생목록 ID 가져오기
         const channelRes = await fetch(
             `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${encodeURIComponent(channelId)}&key=${API_KEY}`
         );
@@ -174,12 +258,10 @@ app.get('/api/youtube/videos', requireAuth, async (req, res) => {
 
         const uploadsPlaylistId = channelData.items[0].contentDetails.relatedPlaylists.uploads;
 
-        // 6개월 전 기준일 (이보다 오래된 영상은 가져오지 않음)
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
         const cutoff = sixMonthsAgo.toISOString();
 
-        // 페이지네이션으로 영상 목록 가져오기 (페이지당 50개, 최대 4페이지 = 200개)
         let allPlaylistItems = [];
         let pageToken = '';
         let done = false;
@@ -203,11 +285,8 @@ app.get('/api/youtube/videos', requireAuth, async (req, res) => {
             if (!pageToken) break;
         }
 
-        if (allPlaylistItems.length === 0) {
-            return res.json([]);
-        }
+        if (allPlaylistItems.length === 0) return res.json([]);
 
-        // 영상 통계 가져오기 (videos API는 한 번에 50개까지 → 청크로 나눠 요청)
         let allVideos = [];
         for (let i = 0; i < allPlaylistItems.length; i += 50) {
             const chunk = allPlaylistItems.slice(i, i + 50);
@@ -217,9 +296,7 @@ app.get('/api/youtube/videos', requireAuth, async (req, res) => {
             );
             trackUnits('영상 통계', 1);
             const videosData = await videosRes.json();
-            if (videosData.items) {
-                allVideos.push(...videosData.items);
-            }
+            if (videosData.items) allVideos.push(...videosData.items);
         }
 
         const videos = allVideos.map(v => ({
@@ -239,7 +316,7 @@ app.get('/api/youtube/videos', requireAuth, async (req, res) => {
     }
 });
 
-// YouTube 검색 (콘텐츠 탐색)
+// ===== YouTube 검색 =====
 app.get('/api/youtube/search', requireAuth, async (req, res) => {
     const { q, order = 'viewCount', maxResults = '12', videoDuration, pages = '1', pageToken: inputPageToken } = req.query;
     if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
@@ -247,15 +324,11 @@ app.get('/api/youtube/search', requireAuth, async (req, res) => {
     const pageCount = Math.min(Math.max(parseInt(pages) || 1, 1), 3);
     const perPage = Math.min(parseInt(maxResults) || 12, 50);
 
-    // 캐시 확인
-    const cacheKey = `${q}|${order}|${perPage}|${videoDuration || ''}|${pageCount}|${inputPageToken || ''}`;
-    const cached = searchCache.get(cacheKey);
-    if (cached && Date.now() - cached.time < CACHE_TTL) {
-        return res.json(cached.data);
-    }
+    const cacheKey = `search|${q}|${order}|${perPage}|${videoDuration || ''}|${pageCount}|${inputPageToken || ''}`;
+    const cached = await getCached(cacheKey);
+    if (cached) return res.json(cached);
 
     try {
-        // 1단계: 검색 → videoId 목록 (페이지네이션)
         const durationParam = videoDuration ? `&videoDuration=${encodeURIComponent(videoDuration)}` : '';
         let allSearchItems = [];
         let pageToken = inputPageToken || '';
@@ -277,7 +350,6 @@ app.get('/api/youtube/search', requireAuth, async (req, res) => {
 
         if (allSearchItems.length === 0) return res.json({ videos: [], nextPageToken: null });
 
-        // 2단계: 영상 상세 통계 (50개씩 청크)
         let allVideoItems = [];
         for (let i = 0; i < allSearchItems.length; i += 50) {
             const chunk = allSearchItems.slice(i, i + 50);
@@ -290,7 +362,6 @@ app.get('/api/youtube/search', requireAuth, async (req, res) => {
             if (videosData.items) allVideoItems.push(...videosData.items);
         }
 
-        // 3단계: 채널 구독자 수 일괄 조회 (50개씩 청크)
         const uniqueChannelIds = [...new Set(allVideoItems.map(v => v.snippet.channelId))];
         const subMap = {};
         for (let i = 0; i < uniqueChannelIds.length; i += 50) {
@@ -326,25 +397,21 @@ app.get('/api/youtube/search', requireAuth, async (req, res) => {
         });
 
         const result = { videos, nextPageToken: pageToken || null };
-        searchCache.set(cacheKey, { data: result, time: Date.now() });
+        await setCache(cacheKey, result, CACHE_TTL);
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 트렌드 영상 (인기 급상승)
+// ===== 트렌드 영상 =====
 app.get('/api/youtube/trending', requireAuth, async (req, res) => {
     const { regionCode = 'KR', videoCategoryId, maxResults = '12' } = req.query;
     const perPage = Math.min(parseInt(maxResults) || 12, 50);
 
-    // 캐시 확인 (2시간)
-    const TRENDING_CACHE_TTL = 2 * 60 * 60 * 1000;
     const cacheKey = `trending|${regionCode}|${videoCategoryId || ''}|${perPage}`;
-    const cached = searchCache.get(cacheKey);
-    if (cached && Date.now() - cached.time < TRENDING_CACHE_TTL) {
-        return res.json(cached.data);
-    }
+    const cached = await getCached(cacheKey);
+    if (cached) return res.json(cached);
 
     try {
         const categoryParam = videoCategoryId ? `&videoCategoryId=${encodeURIComponent(videoCategoryId)}` : '';
@@ -356,7 +423,6 @@ app.get('/api/youtube/trending', requireAuth, async (req, res) => {
         if (videosData.error) return res.status(400).json({ error: videosData.error.message });
         if (!videosData.items || videosData.items.length === 0) return res.json([]);
 
-        // 채널 구독자 수 일괄 조회
         const uniqueChannelIds = [...new Set(videosData.items.map(v => v.snippet.channelId))];
         const subMap = {};
         for (let i = 0; i < uniqueChannelIds.length; i += 50) {
@@ -386,61 +452,50 @@ app.get('/api/youtube/trending', requireAuth, async (req, res) => {
             subscriberCount: subMap[v.snippet.channelId] || 0
         }));
 
-        searchCache.set(cacheKey, { data: videos, time: Date.now(), ttl: TRENDING_CACHE_TTL });
+        await setCache(cacheKey, videos, TRENDING_CACHE_TTL);
         res.json(videos);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 키워드 연관 검색어 제안
+// ===== 키워드 연관 검색어 =====
 app.get('/api/youtube/keyword-suggestions', requireAuth, async (req, res) => {
     const { q } = req.query;
     if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
 
-    // 캐시 확인 (24시간)
-    const SUGGEST_CACHE_TTL = 24 * 60 * 60 * 1000;
     const cacheKey = `suggest|${q}`;
-    const cached = searchCache.get(cacheKey);
-    if (cached && Date.now() - cached.time < SUGGEST_CACHE_TTL) {
-        return res.json(cached.data);
-    }
+    const cached = await getCached(cacheKey);
+    if (cached) return res.json(cached);
 
     try {
         const suggestRes = await fetch(
             `https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=${encodeURIComponent(q)}&hl=ko`
         );
-        if (!suggestRes.ok) {
-            return res.status(suggestRes.status).json({ error: '키워드 제안 API 요청 실패' });
-        }
+        if (!suggestRes.ok) return res.status(suggestRes.status).json({ error: '키워드 제안 API 요청 실패' });
         const buffer = await suggestRes.arrayBuffer();
         const text = new TextDecoder('euc-kr').decode(buffer);
         const data = JSON.parse(text);
         const suggestions = data[1] || [];
 
-        searchCache.set(cacheKey, { data: suggestions, time: Date.now(), ttl: SUGGEST_CACHE_TTL });
+        await setCache(cacheKey, suggestions, SUGGEST_CACHE_TTL);
         res.json(suggestions);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 채널 검색
+// ===== 채널 검색 =====
 app.get('/api/youtube/search-channels', requireAuth, async (req, res) => {
     const { q, maxResults = '12' } = req.query;
     if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
 
     const perPage = Math.min(parseInt(maxResults) || 12, 50);
-
-    // 캐시 확인
     const cacheKey = `ch|${q}|${perPage}`;
-    const cached = searchCache.get(cacheKey);
-    if (cached && Date.now() - cached.time < CACHE_TTL) {
-        return res.json(cached.data);
-    }
+    const cached = await getCached(cacheKey);
+    if (cached) return res.json(cached);
 
     try {
-        // 1단계: 채널 검색
         const searchRes = await fetch(
             `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(q)}&maxResults=${perPage}&key=${API_KEY}`
         );
@@ -449,7 +504,6 @@ app.get('/api/youtube/search-channels', requireAuth, async (req, res) => {
         if (searchData.error) return res.status(400).json({ error: searchData.error.message });
         if (!searchData.items || searchData.items.length === 0) return res.json([]);
 
-        // 2단계: 채널 상세 통계
         const channelIds = searchData.items.map(item => item.id.channelId).join(',');
         const channelsRes = await fetch(
             `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet,brandingSettings&id=${channelIds}&key=${API_KEY}`
@@ -470,7 +524,7 @@ app.get('/api/youtube/search-channels', requireAuth, async (req, res) => {
             hiddenSubscriberCount: ch.statistics.hiddenSubscriberCount || false
         }));
 
-        searchCache.set(cacheKey, { data: channels, time: Date.now() });
+        await setCache(cacheKey, channels, CACHE_TTL);
         res.json(channels);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -478,27 +532,18 @@ app.get('/api/youtube/search-channels', requireAuth, async (req, res) => {
 });
 
 // ===== 아웃라이어 찾기 =====
-
-// 채널 평균/중앙값 캐시 (2시간 TTL)
-const CH_AVG_CACHE_TTL = 2 * 60 * 60 * 1000;
-
 async function getChannelAvgViews(channelId, uploadsPlaylistId) {
     const cacheKey = `ch-avg|${channelId}`;
-    const cached = searchCache.get(cacheKey);
-    if (cached && Date.now() - cached.time < CH_AVG_CACHE_TTL) {
-        return cached.data;
-    }
+    const cached = await getCached(cacheKey);
+    if (cached) return cached;
 
-    // playlistItems 50개 (최근 영상 1페이지)
     const playlistRes = await fetch(
         `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=50&key=${API_KEY}`
     );
     trackUnits('아웃라이어 영상목록', 1);
     const playlistData = await playlistRes.json();
 
-    if (!playlistData.items || playlistData.items.length === 0) {
-        return null;
-    }
+    if (!playlistData.items || playlistData.items.length === 0) return null;
 
     const videoIds = playlistData.items.map(item => item.snippet.resourceId.videoId).join(',');
     const videosRes = await fetch(
@@ -507,9 +552,7 @@ async function getChannelAvgViews(channelId, uploadsPlaylistId) {
     trackUnits('아웃라이어 영상통계', 1);
     const videosData = await videosRes.json();
 
-    if (!videosData.items || videosData.items.length === 0) {
-        return null;
-    }
+    if (!videosData.items || videosData.items.length === 0) return null;
 
     const views = videosData.items.map(v => parseInt(v.statistics.viewCount || 0)).sort((a, b) => a - b);
     const videoCount = views.length;
@@ -519,7 +562,7 @@ async function getChannelAvgViews(channelId, uploadsPlaylistId) {
         : views[Math.floor(videoCount / 2)];
 
     const result = { avgViews, medianViews, videoCount };
-    searchCache.set(cacheKey, { data: result, time: Date.now(), ttl: CH_AVG_CACHE_TTL });
+    await setCache(cacheKey, result, CH_AVG_CACHE_TTL);
     return result;
 }
 
@@ -530,15 +573,11 @@ app.get('/api/youtube/outliers', requireAuth, async (req, res) => {
     const limit = Math.min(parseInt(maxResults) || 10, 15);
     const minScore = parseFloat(minOutlierScore) || 2;
 
-    // 전체 결과 캐시 (30분)
     const cacheKey = `outlier|${q}|${limit}|${minScore}`;
-    const cached = searchCache.get(cacheKey);
-    if (cached && Date.now() - cached.time < CACHE_TTL) {
-        return res.json(cached.data);
-    }
+    const cached = await getCached(cacheKey);
+    if (cached) return res.json(cached);
 
     try {
-        // 1단계: search.list — 조회수 순으로 검색
         const searchRes = await fetch(
             `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(q)}&order=viewCount&maxResults=15&key=${API_KEY}`
         );
@@ -547,7 +586,6 @@ app.get('/api/youtube/outliers', requireAuth, async (req, res) => {
         if (searchData.error) return res.status(400).json({ error: searchData.error.message });
         if (!searchData.items || searchData.items.length === 0) return res.json({ videos: [] });
 
-        // 2단계: videos.list — 영상 상세 통계
         const videoIds = searchData.items.map(item => item.id.videoId).join(',');
         const videosRes = await fetch(
             `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${videoIds}&key=${API_KEY}`
@@ -556,7 +594,6 @@ app.get('/api/youtube/outliers', requireAuth, async (req, res) => {
         const videosData = await videosRes.json();
         if (!videosData.items || videosData.items.length === 0) return res.json({ videos: [] });
 
-        // 3단계: channels.list — 채널 정보 (contentDetails + statistics)
         const uniqueChannelIds = [...new Set(videosData.items.map(v => v.snippet.channelId))];
         const channelMap = {};
         for (let i = 0; i < uniqueChannelIds.length; i += 50) {
@@ -574,7 +611,6 @@ app.get('/api/youtube/outliers', requireAuth, async (req, res) => {
             });
         }
 
-        // 4~5단계: 채널별 중앙값 계산
         const channelAvgMap = {};
         for (const chId of uniqueChannelIds) {
             const chInfo = channelMap[chId];
@@ -585,13 +621,12 @@ app.get('/api/youtube/outliers', requireAuth, async (req, res) => {
             } catch { /* skip */ }
         }
 
-        // 6단계: outlierScore 계산 + 필터
         const results = [];
         for (const v of videosData.items) {
             const chId = v.snippet.channelId;
             const chAvg = channelAvgMap[chId];
             if (!chAvg) continue;
-            if (chAvg.videoCount < 5) continue; // 최소 영상 수 제한
+            if (chAvg.videoCount < 5) continue;
 
             const viewCount = parseInt(v.statistics.viewCount || 0);
             const medianViews = chAvg.medianViews;
@@ -618,19 +653,21 @@ app.get('/api/youtube/outliers', requireAuth, async (req, res) => {
             });
         }
 
-        // 점수순 정렬 + limit
         results.sort((a, b) => b.outlierScore - a.outlierScore);
         const finalResults = results.slice(0, limit);
 
         const result = { videos: finalResults };
-        searchCache.set(cacheKey, { data: result, time: Date.now() });
+        await setCache(cacheKey, result, CACHE_TTL);
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Supervid 서버 실행중: http://localhost:${PORT}`);
-});
+// ===== 로컬 개발용 서버 실행 =====
+if (require.main === module) {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => console.log(`Supervid 서버 실행중: http://localhost:${PORT}`));
+}
+
+module.exports = app;
