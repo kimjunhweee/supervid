@@ -15,6 +15,8 @@ const I18N = {
         'nav.ideas': '아이디어 찾기',
         'nav.addetect': '광고 탐지',
         'nav.outliers': '아웃라이어',
+        'nav.myChannel': '내 채널',
+        'nav.studio': 'YouTube Studio',
         'nav.mypage': '마이페이지',
         'nav.logout': '로그아웃',
 
@@ -39,7 +41,7 @@ const I18N = {
         'login.loggedOut': '로그아웃 되었습니다',
 
         // === Header ===
-        'header.newContent': '+ 새 콘텐츠',
+        'header.newContent': '새 콘텐츠',
 
         // === Status labels ===
         'status.idea': '아이디어',
@@ -501,6 +503,8 @@ const I18N = {
         'nav.ideas': 'Ideas',
         'nav.addetect': 'Ad Detect',
         'nav.outliers': 'Outliers',
+        'nav.myChannel': 'My Channel',
+        'nav.studio': 'YouTube Studio',
         'nav.mypage': 'My Page',
         'nav.logout': 'Log Out',
 
@@ -525,7 +529,7 @@ const I18N = {
         'login.loggedOut': 'You have been logged out',
 
         // === Header ===
-        'header.newContent': '+ New Content',
+        'header.newContent': 'New Content',
 
         // === Status labels ===
         'status.idea': 'Idea',
