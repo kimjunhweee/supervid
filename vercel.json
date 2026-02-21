@@ -5,7 +5,8 @@
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "app.js", "use": "@vercel/static" },
     { "src": "styles.css", "use": "@vercel/static" },
-    { "src": "i18n.js", "use": "@vercel/static" }
+    { "src": "i18n.js", "use": "@vercel/static" },
+    { "src": "fonts/**", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.js" },
