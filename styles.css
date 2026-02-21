@@ -520,6 +520,124 @@ body {
     }
 }
 
+/* ===== Goal Dashboard ===== */
+.goal-dashboard-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+.goal-card {
+    background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; display: flex; flex-direction: column; align-items: center; text-align: center;
+    transition: all var(--transition);
+}
+.goal-card-header {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; margin-bottom: 10px; position: relative;
+}
+.goal-card-header .upload-goal-edit-btn {
+    position: absolute; right: 0; top: -4px;
+}
+.goal-card-label {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--text-muted);
+}
+.goal-ring-wrap {
+    position: relative; width: 80px; height: 80px;
+}
+.goal-ring-svg {
+    width: 80px; height: 80px; transform: rotate(-90deg);
+}
+.goal-ring-bg {
+    fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 5;
+}
+[data-theme="light"] .goal-ring-bg { stroke: rgba(0, 0, 0, 0.08); }
+.goal-ring-fill {
+    fill: none; stroke: var(--accent); stroke-width: 5;
+    stroke-linecap: round; transition: stroke-dashoffset 0.6s ease;
+}
+.goal-ring-fill-weekly { stroke: #a78bfa; }
+.goal-ring-text {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+}
+.goal-ring-current {
+    font-size: 22px; font-weight: 700; line-height: 1;
+}
+.goal-ring-target {
+    font-size: 12px; color: var(--text-muted); margin-top: 2px;
+}
+.goal-streak-body {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.goal-streak-icon { font-size: 24px; }
+.goal-streak-number { font-size: 28px; font-weight: 700; line-height: 1; }
+.goal-streak-unit { font-size: 13px; color: var(--text-secondary); }
+.goal-streak-best { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.goal-pace-body {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.goal-pace-info { font-size: 13px; color: var(--text-secondary); }
+.goal-pace-badge {
+    display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px;
+    border-radius: 20px; line-height: 1.4;
+}
+.goal-pace-badge.relaxed { background: rgba(34,197,94,0.15); color: #22c55e; }
+.goal-pace-badge.on-track { background: rgba(234,179,8,0.15); color: #eab308; }
+.goal-pace-badge.tight { background: rgba(239,68,68,0.15); color: #ef4444; }
+.goal-pace-badge.done { background: rgba(34,197,94,0.15); color: #22c55e; }
+
+/* Upload Goal Card */
+.upload-goal-card { padding: 20px 28px; }
+.upload-goal-inline {
+    display: flex; align-items: center; gap: 24px; width: 100%;
+}
+.upload-goal-monthly {
+    display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
+}
+.upload-goal-monthly .my-channel-stat-label { margin-bottom: 6px; }
+.upload-goal-display {
+    display: flex; align-items: baseline; gap: 2px;
+}
+.upload-goal-current {
+    font-size: 36px; font-weight: 700; letter-spacing: -1px; line-height: 1;
+}
+.upload-goal-separator {
+    font-size: 22px; font-weight: 400; color: var(--text-muted); margin: 0 2px;
+}
+.upload-goal-target {
+    font-size: 22px; font-weight: 600; color: var(--text-muted);
+}
+.upload-goal-progress-section {
+    flex: 1; min-width: 0;
+}
+.upload-goal-bar {
+    width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px; overflow: hidden; margin-bottom: 8px;
+}
+[data-theme="light"] .upload-goal-bar { background: rgba(0, 0, 0, 0.08); }
+.upload-goal-bar-fill {
+    height: 100%; background: var(--accent); border-radius: 3px;
+    transition: width 0.5s ease; width: 0%;
+}
+.upload-goal-bar-fill.complete { background: var(--accent); }
+.upload-goal-footer {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+}
+.upload-goal-pct {
+    font-size: 13px; font-weight: 600; color: var(--text-secondary);
+}
+.upload-goal-weekly-text {
+    font-size: 13px; color: var(--text-secondary);
+}
+.upload-goal-weekly-text strong {
+    color: var(--text-primary); font-weight: 600;
+}
+.upload-goal-edit-btn {
+    background: none; border: none; cursor: pointer; color: var(--text-muted);
+    padding: 8px; border-radius: var(--radius-sm); transition: all var(--transition);
+    flex-shrink: 0;
+}
+.upload-goal-edit-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
 /* ===== My Channel Hero Stats ===== */
 .my-channel-stats {
     display: grid;
