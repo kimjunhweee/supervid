@@ -1391,6 +1391,8 @@ body {
 .nc-option-card:hover { border-color: var(--ring); background: var(--bg-hover); }
 .nc-option-card.active { border-color: var(--text-primary); background: var(--bg-hover); }
 .nc-option-card input[type="radio"] { display: none; }
+.nc-option-card.coming-soon { opacity: 0.45; cursor: default; }
+.nc-option-card.coming-soon:hover { border-color: var(--border); background: none; }
 .nc-option-icon { color: var(--text-muted); transition: color var(--transition); }
 .nc-option-card.active .nc-option-icon { color: var(--text-primary); }
 .nc-option-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }

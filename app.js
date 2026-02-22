@@ -2732,10 +2732,19 @@ function setupNewContentPage() {
     document.getElementById('ncNextBtn').addEventListener('click', ncNext);
     document.getElementById('ncPrevBtn').addEventListener('click', ncPrev);
 
+    // YouTube 외 플랫폼 카드에 coming-soon 스타일 적용
+    document.querySelectorAll('#ncPlatformGrid .nc-option-card').forEach(card => {
+        if (card.dataset.value !== 'youtube') card.classList.add('coming-soon');
+    });
+
     // Option card selection (platform, type)
     document.querySelectorAll('.nc-option-card').forEach(card => {
         card.addEventListener('click', () => {
             const grid = card.closest('.nc-option-grid');
+            if (grid.id === 'ncPlatformGrid' && card.dataset.value !== 'youtube') {
+                toast(t('toast.comingSoon'));
+                return;
+            }
             grid.querySelectorAll('.nc-option-card').forEach(c => c.classList.remove('active'));
             card.classList.add('active');
             card.querySelector('input[type="radio"]').checked = true;
