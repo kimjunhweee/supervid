@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const { createClient } = require('@supabase/supabase-js');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 // ===== Supabase 초기화 =====
@@ -62,7 +63,39 @@ async function setCache(key, value, ttlMs = CACHE_TTL) {
 
 // ===== Express 앱 =====
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+
+const ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'https://supervid.vercel.app'
+];
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) callback(null, true);
+        else callback(new Error('CORS 차단: ' + origin));
+    },
+    credentials: true
+}));
+
+// ===== Rate Limiting =====
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15분
+    max: 20,
+    message: { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1분
+    max: 60,
+    message: { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+app.use('/api/auth', authLimiter);
+app.use('/api/youtube', apiLimiter);
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static('.'));
