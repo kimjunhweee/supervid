@@ -2739,7 +2739,8 @@ function setupNewContentPage() {
 
     // Option card selection (platform, type)
     document.querySelectorAll('.nc-option-card').forEach(card => {
-        card.addEventListener('click', () => {
+        card.addEventListener('click', (e) => {
+            if (e.target.type === 'radio') return; // label→input synthetic click 버블링 무시
             const grid = card.closest('.nc-option-grid');
             if (grid.id === 'ncPlatformGrid' && card.dataset.value !== 'youtube') {
                 toast(t('toast.comingSoon'));
