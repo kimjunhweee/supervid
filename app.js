@@ -2722,7 +2722,7 @@ function velocityBadgeHtml(video) {
 }
 
 // ===== New Content Wizard =====
-const NC_TOTAL_STEPS = 6;
+const NC_TOTAL_STEPS = 3;
 let _ncCurrentStep = 0;
 let _ncIdeaText = '';
 let _ncSelectedRefs = [];
@@ -2739,22 +2739,6 @@ function setupNewContentPage() {
             grid.querySelectorAll('.nc-option-card').forEach(c => c.classList.remove('active'));
             card.classList.add('active');
             card.querySelector('input[type="radio"]').checked = true;
-        });
-    });
-
-    // Thumbnail style card selection
-    document.querySelectorAll('#ncThumbStyleGrid .nc-thumb-style-card').forEach(card => {
-        card.addEventListener('click', () => {
-            document.querySelectorAll('#ncThumbStyleGrid .nc-thumb-style-card').forEach(c => c.classList.remove('active'));
-            card.classList.add('active');
-        });
-    });
-
-    // Thumbnail background card selection
-    document.querySelectorAll('#ncThumbBgGrid .nc-thumb-bg-card').forEach(card => {
-        card.addEventListener('click', () => {
-            document.querySelectorAll('#ncThumbBgGrid .nc-thumb-bg-card').forEach(c => c.classList.remove('active'));
-            card.classList.add('active');
         });
     });
 
@@ -2777,12 +2761,6 @@ function setupNewContentPage() {
             if (q) ncAutoSearch(q);
         }
     });
-
-    // Skip reference step
-    document.getElementById('ncRefSkip').addEventListener('click', e => {
-        e.preventDefault();
-        ncNext();
-    });
 }
 
 function openAddContent(date) {
@@ -2801,15 +2779,6 @@ function openAddContent(date) {
     document.getElementById('ncRefLoading').style.display = 'none';
     document.getElementById('ncTitlePatterns').innerHTML = '';
     document.getElementById('ncKeywordChips').innerHTML = '';
-
-    // Reset thumbnail fields
-    document.getElementById('ncThumbText').value = '';
-    document.getElementById('ncThumbMemo').value = '';
-    document.getElementById('ncThumbGrid').innerHTML = '';
-    document.querySelectorAll('#ncThumbStyleGrid .nc-thumb-style-card').forEach(c => c.classList.remove('active'));
-    document.querySelector('#ncThumbStyleGrid .nc-thumb-style-card[data-value="bold-white"]').classList.add('active');
-    document.querySelectorAll('#ncThumbBgGrid .nc-thumb-bg-card').forEach(c => c.classList.remove('active'));
-    document.querySelector('#ncThumbBgGrid .nc-thumb-bg-card[data-value="closeup"]').classList.add('active');
 
     // Reset platform selection to youtube
     document.querySelectorAll('#ncPlatformGrid .nc-option-card').forEach(c => c.classList.remove('active'));
@@ -2832,7 +2801,7 @@ function ncNext() {
         if (idea.length < 2) { toast(t('nc.ideaMinLength')); document.getElementById('ncIdea').focus(); return; }
         _ncIdeaText = idea;
     }
-    if (_ncCurrentStep === 2) {
+    if (_ncCurrentStep === 1) {
         const title = document.getElementById('ncTitle').value.trim();
         if (title.length < 2) { toast(t('nc.titleMinLength')); document.getElementById('ncTitle').focus(); return; }
     }
@@ -2879,22 +2848,15 @@ function ncRenderStep() {
 
     // Step-specific auto actions
     if (_ncCurrentStep === 1) {
-        // Auto search on entering reference step
-        document.getElementById('ncRefSearchInput').value = _ncIdeaText;
-        ncAutoSearch(_ncIdeaText);
-    }
-    if (_ncCurrentStep === 2) {
-        // Pre-fill title with idea text if empty
+        // Pre-fill title and auto-search on entering ref+title step
         const titleInput = document.getElementById('ncTitle');
         if (!titleInput.value.trim()) titleInput.value = _ncIdeaText;
+        document.getElementById('ncRefSearchInput').value = _ncIdeaText;
         ncRenderTitlePatterns();
+        ncAutoSearch(_ncIdeaText);
         setTimeout(() => titleInput.focus(), 100);
     }
-    if (_ncCurrentStep === 3) {
-        // Render thumbnail comparison grid
-        ncRenderThumbnailStep();
-    }
-    if (_ncCurrentStep === 5) {
+    if (_ncCurrentStep === 2) {
         // Update review card
         ncUpdateReviewCard();
     }
@@ -2939,6 +2901,7 @@ async function ncAutoSearch(query) {
         const videos = videosData.videos || videosData;
         _ncLastSearchResults = Array.isArray(videos) ? videos : [];
         ncRenderRefResults(_ncLastSearchResults);
+        ncRenderTitlePatterns();
     } catch (err) {
         listEl.innerHTML = `<div class="nc-ref-error">${t('nc.ref.searchFail', { error: escapeHtml(err.message) })}</div>`;
     } finally {
@@ -2993,6 +2956,7 @@ function ncToggleRef(video) {
     } else {
         _ncSelectedRefs.push(video);
     }
+    ncRenderTitlePatterns();
 }
 
 function ncRenderTitlePatterns() {
@@ -3130,15 +3094,6 @@ function ncUpdateReviewCard() {
     document.getElementById('ncReviewRefs').textContent = _ncSelectedRefs.length > 0
         ? t('nc.review.refsSelected', { n: _ncSelectedRefs.length })
         : t('nc.review.refsNone');
-
-    // Thumbnail summary
-    const thumbText = document.getElementById('ncThumbText').value.trim();
-    const thumbStyle = document.querySelector('#ncThumbStyleGrid .nc-thumb-style-card.active')?.dataset.value || '';
-    const styleLabels = { 'bold-white': t('nc.thumb.styleBoldWhite'), 'yellow-highlight': t('nc.thumb.styleYellow'), 'red-bg': t('nc.thumb.styleRed'), 'outline': t('nc.thumb.styleOutline'), 'gradient': t('nc.thumb.styleGradient') };
-    const thumbParts = [];
-    if (thumbText) thumbParts.push(`"${thumbText}"`);
-    if (thumbStyle) thumbParts.push(styleLabels[thumbStyle] || thumbStyle);
-    document.getElementById('ncReviewThumb').textContent = thumbParts.length > 0 ? thumbParts.join(' · ') : t('nc.review.thumbNone');
 }
 
 function ncSave() {
@@ -3156,10 +3111,10 @@ function ncSave() {
         memo = memo ? memo + refSection : refSection.trim();
     }
 
-    const thumbnailText = document.getElementById('ncThumbText').value.trim();
-    const thumbnailStyle = document.querySelector('#ncThumbStyleGrid .nc-thumb-style-card.active')?.dataset.value || 'bold-white';
-    const thumbnailBg = document.querySelector('#ncThumbBgGrid .nc-thumb-bg-card.active')?.dataset.value || 'closeup';
-    const thumbnailMemo = document.getElementById('ncThumbMemo').value.trim();
+    const thumbnailText = '';
+    const thumbnailStyle = 'bold-white';
+    const thumbnailBg = 'closeup';
+    const thumbnailMemo = '';
 
     const data = {
         id: generateId(),

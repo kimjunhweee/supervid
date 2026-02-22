@@ -635,146 +635,17 @@
             <div class="nc-page">
                 <!-- Step indicator -->
                 <div class="nc-steps">
-                    <div class="nc-step active" data-step="0"><span class="nc-step-dot">1</span><span class="nc-step-label" data-i18n="nc.step.idea">아이디어</span></div>
+                    <div class="nc-step active" data-step="0"><span class="nc-step-dot">1</span><span class="nc-step-label" data-i18n="nc.step.setup">아이디어 & 설정</span></div>
                     <div class="nc-step-line"></div>
-                    <div class="nc-step" data-step="1"><span class="nc-step-dot">2</span><span class="nc-step-label" data-i18n="nc.step.reference">레퍼런스</span></div>
+                    <div class="nc-step" data-step="1"><span class="nc-step-dot">2</span><span class="nc-step-label" data-i18n="nc.step.refTitle">레퍼런스 & 제목</span></div>
                     <div class="nc-step-line"></div>
-                    <div class="nc-step" data-step="2"><span class="nc-step-dot">3</span><span class="nc-step-label" data-i18n="nc.step.title">제목</span></div>
-                    <div class="nc-step-line"></div>
-                    <div class="nc-step" data-step="3"><span class="nc-step-dot">4</span><span class="nc-step-label" data-i18n="nc.step.thumbnail">썸네일</span></div>
-                    <div class="nc-step-line"></div>
-                    <div class="nc-step" data-step="4"><span class="nc-step-dot">5</span><span class="nc-step-label" data-i18n="nc.step.settings">설정</span></div>
-                    <div class="nc-step-line"></div>
-                    <div class="nc-step" data-step="5"><span class="nc-step-dot">6</span><span class="nc-step-label" data-i18n="nc.step.memo">메모</span></div>
+                    <div class="nc-step" data-step="2"><span class="nc-step-dot">3</span><span class="nc-step-label" data-i18n="nc.step.confirm">확인</span></div>
                 </div>
 
-                <!-- Step 0: 아이디어 -->
+                <!-- Step 0: 아이디어 & 설정 -->
                 <div class="nc-step-content active" data-step-content="0">
-                    <h2 class="nc-step-title" data-i18n="nc.idea.title">어떤 콘텐츠를 만들고 싶으세요?</h2>
-                    <p class="nc-step-desc" data-i18n="nc.idea.desc">주제, 키워드, 아이디어를 자유롭게 적어주세요</p>
-                    <textarea id="ncIdea" class="nc-step-textarea" rows="3" placeholder="예: 자취생 냉장고 정리 꿀팁, 5만원 이하로 가능한 방법들..." data-i18n-placeholder="nc.idea.placeholder"></textarea>
-                </div>
-
-                <!-- Step 1: 레퍼런스 -->
-                <div class="nc-step-content" data-step-content="1">
-                    <h2 class="nc-step-title" data-i18n="nc.ref.title">관련 영상을 확인해보세요</h2>
-                    <p class="nc-step-desc" data-i18n="nc.ref.desc">비슷한 주제의 인기 영상을 참고하면 제목과 방향을 잡기 쉬워요</p>
-                    <div class="nc-ref-search-bar">
-                        <input id="ncRefSearchInput" class="nc-step-input" placeholder="검색어 수정..." data-i18n-placeholder="nc.ref.searchPlaceholder">
-                        <button class="btn btn-primary" id="ncRefSearchBtn" data-i18n="nc.ref.searchBtn">검색</button>
-                    </div>
-                    <div class="nc-ref-chips" id="ncRefChips"></div>
-                    <div class="nc-ref-loading" id="ncRefLoading" style="display:none" data-i18n="nc.ref.loading">검색 중...</div>
-                    <div class="nc-ref-list" id="ncRefList"></div>
-                    <div class="nc-ref-skip"><a href="#" id="ncRefSkip" data-i18n="nc.ref.skip">건너뛰기</a></div>
-                </div>
-
-                <!-- Step 2: 제목 -->
-                <div class="nc-step-content" data-step-content="2">
-                    <h2 class="nc-step-title" data-i18n="nc.title.title">콘텐츠 제목을 확정하세요</h2>
-                    <p class="nc-step-desc" data-i18n="nc.title.desc">인기 영상의 제목 패턴을 참고해서 매력적인 제목을 완성하세요</p>
-                    <input type="text" id="ncTitle" class="nc-step-input" placeholder="제목을 입력하세요" data-i18n-placeholder="nc.title.placeholder">
-                    <div class="nc-title-patterns" id="ncTitlePatterns"></div>
-                    <div class="nc-keyword-chips" id="ncKeywordChips"></div>
-                </div>
-
-                <!-- Step 3: 썸네일 기획 -->
-                <div class="nc-step-content" data-step-content="3">
-                    <h2 class="nc-step-title" data-i18n="nc.thumb.title">썸네일을 기획해보세요</h2>
-                    <p class="nc-step-desc" data-i18n="nc.thumb.desc">레퍼런스 썸네일을 비교하고, 내 썸네일 컨셉을 잡아보세요</p>
-
-                    <!-- 레퍼런스 썸네일 비교 -->
-                    <div class="nc-thumb-section">
-                        <label class="nc-settings-label" data-i18n="nc.thumb.refLabel">레퍼런스 썸네일</label>
-                        <div class="nc-thumb-grid" id="ncThumbGrid"></div>
-                    </div>
-
-                    <!-- 내 썸네일 컨셉 -->
-                    <div class="nc-thumb-concept">
-                        <div class="nc-thumb-section">
-                            <label class="nc-settings-label" data-i18n="nc.thumb.mainText">메인 텍스트</label>
-                            <input type="text" id="ncThumbText" class="nc-step-input nc-thumb-text-input" placeholder="썸네일에 들어갈 핵심 문구 (예: 이거 실화?)" data-i18n-placeholder="nc.thumb.mainTextPlaceholder">
-                        </div>
-
-                        <div class="nc-thumb-section">
-                            <label class="nc-settings-label" data-i18n="nc.thumb.textStyle">텍스트 스타일</label>
-                            <div class="nc-thumb-style-grid" id="ncThumbStyleGrid">
-                                <div class="nc-thumb-style-card active" data-value="bold-white">
-                                    <span class="nc-thumb-style-preview" style="color:#fff;font-weight:900;text-shadow:2px 2px 4px rgba(0,0,0,0.8)">Aa</span>
-                                    <span class="nc-thumb-style-label" data-i18n="nc.thumb.styleBoldWhite">굵은 흰색</span>
-                                </div>
-                                <div class="nc-thumb-style-card" data-value="yellow-highlight">
-                                    <span class="nc-thumb-style-preview" style="color:#000;background:#FFD600;padding:2px 6px;font-weight:900">Aa</span>
-                                    <span class="nc-thumb-style-label" data-i18n="nc.thumb.styleYellow">노란 강조</span>
-                                </div>
-                                <div class="nc-thumb-style-card" data-value="red-bg">
-                                    <span class="nc-thumb-style-preview" style="color:#fff;background:#E53935;padding:2px 6px;font-weight:900">Aa</span>
-                                    <span class="nc-thumb-style-label" data-i18n="nc.thumb.styleRed">빨간 배경</span>
-                                </div>
-                                <div class="nc-thumb-style-card" data-value="outline">
-                                    <span class="nc-thumb-style-preview" style="color:transparent;font-weight:900;-webkit-text-stroke:1.5px #fff;text-shadow:none">Aa</span>
-                                    <span class="nc-thumb-style-label" data-i18n="nc.thumb.styleOutline">아웃라인</span>
-                                </div>
-                                <div class="nc-thumb-style-card" data-value="gradient">
-                                    <span class="nc-thumb-style-preview" style="font-weight:900;background:linear-gradient(135deg,#FF6B6B,#FFD93D);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Aa</span>
-                                    <span class="nc-thumb-style-label" data-i18n="nc.thumb.styleGradient">그라디언트</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="nc-thumb-section">
-                            <label class="nc-settings-label" data-i18n="nc.thumb.bgConcept">배경 컨셉</label>
-                            <div class="nc-thumb-bg-grid" id="ncThumbBgGrid">
-                                <div class="nc-thumb-bg-card active" data-value="closeup">
-                                    <span class="nc-thumb-bg-icon">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 10-16 0"/></svg>
-                                    </span>
-                                    <span class="nc-thumb-bg-label" data-i18n="nc.thumb.bgCloseup">인물 클로즈업</span>
-                                </div>
-                                <div class="nc-thumb-bg-card" data-value="before-after">
-                                    <span class="nc-thumb-bg-icon">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
-                                    </span>
-                                    <span class="nc-thumb-bg-label" data-i18n="nc.thumb.bgBeforeAfter">비포/애프터</span>
-                                </div>
-                                <div class="nc-thumb-bg-card" data-value="product">
-                                    <span class="nc-thumb-bg-icon">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-                                    </span>
-                                    <span class="nc-thumb-bg-label" data-i18n="nc.thumb.bgProduct">음식/제품</span>
-                                </div>
-                                <div class="nc-thumb-bg-card" data-value="reaction">
-                                    <span class="nc-thumb-bg-icon">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-                                    </span>
-                                    <span class="nc-thumb-bg-label" data-i18n="nc.thumb.bgReaction">반응샷</span>
-                                </div>
-                                <div class="nc-thumb-bg-card" data-value="text-only">
-                                    <span class="nc-thumb-bg-icon">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4,7 4,4 20,4 20,7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-                                    </span>
-                                    <span class="nc-thumb-bg-label" data-i18n="nc.thumb.bgTextOnly">텍스트 중심</span>
-                                </div>
-                                <div class="nc-thumb-bg-card" data-value="custom">
-                                    <span class="nc-thumb-bg-icon">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-                                    </span>
-                                    <span class="nc-thumb-bg-label" data-i18n="nc.thumb.bgCustom">기타</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="nc-thumb-section">
-                            <label class="nc-settings-label" data-i18n="nc.thumb.memoLabel">컨셉 메모</label>
-                            <textarea id="ncThumbMemo" class="nc-step-textarea nc-thumb-memo" rows="2" placeholder="촬영 각도, 소품, 표정 등 자유롭게 메모" data-i18n-placeholder="nc.thumb.memoPlaceholder"></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Step 4: 설정 (플랫폼 + 유형 + 일정 통합) -->
-                <div class="nc-step-content" data-step-content="4">
-                    <h2 class="nc-step-title" data-i18n="nc.settings.title">콘텐츠 설정</h2>
-                    <p class="nc-step-desc" data-i18n="nc.settings.desc">플랫폼, 유형, 업로드 일정을 설정하세요</p>
+                    <h2 class="nc-step-title" data-i18n="nc.setup.title">어떤 콘텐츠를 만드나요?</h2>
+                    <p class="nc-step-desc" data-i18n="nc.setup.desc">플랫폼과 유형을 정하고 아이디어를 입력하세요</p>
                     <div class="nc-settings-section">
                         <label class="nc-settings-label" data-i18n="nc.settings.platform">플랫폼</label>
                         <div class="nc-option-grid" id="ncPlatformGrid">
@@ -842,22 +713,50 @@
                         </div>
                     </div>
                     <div class="nc-settings-section">
+                        <label class="nc-settings-label" data-i18n="nc.idea.title">아이디어</label>
+                        <textarea id="ncIdea" class="nc-step-textarea" rows="3" placeholder="예: 자취생 냉장고 정리 꿀팁, 5만원 이하로 가능한 방법들..." data-i18n-placeholder="nc.idea.placeholder"></textarea>
+                    </div>
+                    <div class="nc-settings-section">
                         <label class="nc-settings-label" data-i18n="nc.settings.uploadDate">업로드 예정일</label>
                         <input type="date" id="ncDate" class="nc-step-input">
                     </div>
                 </div>
 
-                <!-- Step 5: 메모 + 확인 -->
-                <div class="nc-step-content" data-step-content="5">
-                    <h2 class="nc-step-title" data-i18n="nc.memo.title">마지막으로 메모를 남겨주세요</h2>
-                    <p class="nc-step-desc" data-i18n="nc.memo.desc">참고 사항을 적고 내용을 확인하세요</p>
-                    <textarea id="ncMemo" class="nc-step-textarea" rows="4" placeholder="예: 야외 촬영, 소품 준비 필요" data-i18n-placeholder="nc.memo.placeholder"></textarea>
+                <!-- Step 1: 레퍼런스 & 제목 -->
+                <div class="nc-step-content" data-step-content="1">
+                    <h2 class="nc-step-title" data-i18n="nc.reftitle.title">레퍼런스를 참고해서 제목을 정하세요</h2>
+                    <p class="nc-step-desc" data-i18n="nc.reftitle.desc">인기 영상을 찾아보고 매력적인 제목을 완성하세요</p>
+                    <!-- 제목 입력 (상단 고정) -->
+                    <div class="nc-settings-section">
+                        <label class="nc-settings-label" data-i18n="nc.title.title">제목</label>
+                        <input type="text" id="ncTitle" class="nc-step-input" placeholder="제목을 입력하세요" data-i18n-placeholder="nc.title.placeholder">
+                        <div class="nc-keyword-chips" id="ncKeywordChips"></div>
+                    </div>
+                    <!-- 레퍼런스 검색 -->
+                    <div class="nc-settings-section">
+                        <label class="nc-settings-label" data-i18n="nc.ref.title">레퍼런스 영상</label>
+                        <div class="nc-ref-search-bar">
+                            <input id="ncRefSearchInput" class="nc-step-input" placeholder="검색어 수정..." data-i18n-placeholder="nc.ref.searchPlaceholder">
+                            <button class="btn btn-primary" id="ncRefSearchBtn" data-i18n="nc.ref.searchBtn">검색</button>
+                        </div>
+                        <div class="nc-ref-chips" id="ncRefChips"></div>
+                        <div class="nc-ref-loading" id="ncRefLoading" style="display:none" data-i18n="nc.ref.loading">검색 중...</div>
+                        <div class="nc-ref-list" id="ncRefList"></div>
+                        <div class="nc-title-patterns" id="ncTitlePatterns"></div>
+                    </div>
+                </div>
+
+                <!-- Step 2: 확인 -->
+                <div class="nc-step-content" data-step-content="2">
+                    <h2 class="nc-step-title" data-i18n="nc.confirm.title">내용을 확인하고 저장하세요</h2>
+                    <p class="nc-step-desc" data-i18n="nc.confirm.desc">메모를 남기고 콘텐츠를 시작하세요</p>
+                    <textarea id="ncMemo" class="nc-step-textarea" rows="3" placeholder="예: 야외 촬영, 소품 준비 필요" data-i18n-placeholder="nc.memo.placeholder"></textarea>
                     <div class="nc-review-card" id="ncReviewCard">
-                        <div>제목: <strong id="ncReviewTitle">-</strong></div>
-                        <div>플랫폼: <span id="ncReviewPlatform">-</span> · 유형: <span id="ncReviewType">-</span></div>
-                        <div>업로드 예정: <span id="ncReviewDate">-</span></div>
-                        <div>레퍼런스: <span id="ncReviewRefs">-</span></div>
-                        <div>썸네일: <span id="ncReviewThumb">-</span></div>
+                        <div class="nc-review-row"><span class="nc-review-label" data-i18n="nc.review.titleLabel">제목</span><strong id="ncReviewTitle">-</strong></div>
+                        <div class="nc-review-row"><span class="nc-review-label" data-i18n="nc.settings.platform">플랫폼</span><span id="ncReviewPlatform">-</span></div>
+                        <div class="nc-review-row"><span class="nc-review-label" data-i18n="nc.settings.type">유형</span><span id="ncReviewType">-</span></div>
+                        <div class="nc-review-row"><span class="nc-review-label" data-i18n="nc.settings.uploadDate">업로드 예정일</span><span id="ncReviewDate">-</span></div>
+                        <div class="nc-review-row"><span class="nc-review-label" data-i18n="nc.ref.title">레퍼런스</span><span id="ncReviewRefs">-</span></div>
                     </div>
                 </div>
 

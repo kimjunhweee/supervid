@@ -1628,10 +1628,17 @@ body {
 /* Review card */
 .nc-review-card {
     margin-top: 20px; padding: 16px; background: var(--bg-hover);
-    border-radius: var(--radius); font-size: 13px; line-height: 1.8;
-    color: var(--text-secondary);
+    border-radius: var(--radius); font-size: 13px;
+    color: var(--text-secondary); display: flex; flex-direction: column; gap: 10px;
 }
 .nc-review-card strong { color: var(--text-primary); }
+.nc-review-row {
+    display: flex; align-items: baseline; gap: 12px;
+}
+.nc-review-label {
+    flex-shrink: 0; width: 80px; font-size: 11px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
 
 /* ===== Ad Detect (광고 탐지) ===== */
 .addetect-search-bar {
