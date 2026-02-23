@@ -428,12 +428,51 @@
 
         <!-- Discover Tab -->
         <section class="tab-content" id="tab-discover">
+            <div class="discover-inline-form">
+                <div class="discover-inline-main-row">
+                    <input type="text" id="searchKeyword" class="discover-inline-input" placeholder="검색어를 입력하세요" data-i18n-placeholder="discover.keywordPlaceholder">
+                    <button class="btn btn-primary" id="searchSubmitBtn" data-i18n="discover.submit">검색</button>
+                    <button class="btn btn-secondary" id="searchResetBtn" data-i18n="discover.reset">초기화</button>
+                </div>
+                <div class="discover-inline-filter-row">
+                    <select id="searchDuration" class="discover-inline-select">
+                        <option value="" data-i18n="discover.all">전체</option>
+                        <option value="short" data-i18n="discover.shorts">숏츠 (4분 이하)</option>
+                        <option value="medium" data-i18n="discover.medium">롱폼 (4~20분)</option>
+                        <option value="long" data-i18n="discover.longPlus">롱폼+ (20분 이상)</option>
+                    </select>
+                    <select id="searchOrder" class="discover-inline-select">
+                        <option value="viewCount" data-i18n="discover.sortViews">조회수순</option>
+                        <option value="relevance" data-i18n="discover.sortRelevance">관련도순</option>
+                        <option value="date" data-i18n="discover.sortDate">최신순</option>
+                        <option value="performance" data-i18n="discover.sortPerformance">성과순</option>
+                        <option value="velocity" data-i18n="discover.sortVelocity">폭발력순</option>
+                    </select>
+                    <select id="searchSubMin" class="discover-inline-select">
+                        <option value="0">최소 없음</option>
+                        <option value="1000">1천 이상</option>
+                        <option value="5000">5천 이상</option>
+                        <option value="10000">1만 이상</option>
+                        <option value="50000">5만 이상</option>
+                        <option value="100000">10만 이상</option>
+                        <option value="500000">50만 이상</option>
+                        <option value="1000000">100만 이상</option>
+                    </select>
+                    <span class="discover-inline-sep">~</span>
+                    <select id="searchSubMax" class="discover-inline-select">
+                        <option value="0">최대 없음</option>
+                        <option value="1000">1천 이하</option>
+                        <option value="5000">5천 이하</option>
+                        <option value="10000">1만 이하</option>
+                        <option value="50000">5만 이하</option>
+                        <option value="100000">10만 이하</option>
+                        <option value="500000">50만 이하</option>
+                        <option value="1000000">100만 이하</option>
+                    </select>
+                </div>
+            </div>
             <div class="discover-header">
                 <span class="discover-result-info" id="discoverResultInfo"></span>
-                <button class="btn btn-primary" id="openSearchModalBtn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <span data-i18n="discover.search">검색</span>
-                </button>
             </div>
             <div class="discover-active-filters" id="discoverActiveFilters"></div>
             <div class="discover-grid" id="discoverGrid">
@@ -975,71 +1014,7 @@
     </div>
 
     <!-- Modal: Search -->
-    <div class="modal-overlay" id="searchModal">
-        <div class="modal">
-            <div class="modal-header">
-                <h3 data-i18n="discover.searchModal">콘텐츠 검색</h3>
-                <button class="modal-close" id="closeSearchModal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label data-i18n="discover.keyword">키워드</label>
-                    <input type="text" id="searchKeyword" placeholder="검색어를 입력하세요" data-i18n-placeholder="discover.keywordPlaceholder">
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label data-i18n="discover.videoType">영상 유형</label>
-                        <select id="searchDuration">
-                            <option value="" data-i18n="discover.all">전체</option>
-                            <option value="short" data-i18n="discover.shorts">숏츠 (4분 이하)</option>
-                            <option value="medium" data-i18n="discover.medium">롱폼 (4~20분)</option>
-                            <option value="long" data-i18n="discover.longPlus">롱폼+ (20분 이상)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label data-i18n="discover.sort">정렬</label>
-                        <select id="searchOrder">
-                            <option value="viewCount" data-i18n="discover.sortViews">조회수순</option>
-                            <option value="relevance" data-i18n="discover.sortRelevance">관련도순</option>
-                            <option value="date" data-i18n="discover.sortDate">최신순</option>
-                            <option value="performance" data-i18n="discover.sortPerformance">성과순</option>
-                            <option value="velocity" data-i18n="discover.sortVelocity">폭발력순</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label data-i18n="discover.subRange">구독자 수 범위</label>
-                    <div class="search-range-row">
-                        <select id="searchSubMin">
-                            <option value="0">최소 없음</option>
-                            <option value="1000">1천 이상</option>
-                            <option value="5000">5천 이상</option>
-                            <option value="10000">1만 이상</option>
-                            <option value="50000">5만 이상</option>
-                            <option value="100000">10만 이상</option>
-                            <option value="500000">50만 이상</option>
-                            <option value="1000000">100만 이상</option>
-                        </select>
-                        <span class="search-range-sep">~</span>
-                        <select id="searchSubMax">
-                            <option value="0">최대 없음</option>
-                            <option value="1000">1천 이하</option>
-                            <option value="5000">5천 이하</option>
-                            <option value="10000">1만 이하</option>
-                            <option value="50000">5만 이하</option>
-                            <option value="100000">10만 이하</option>
-                            <option value="500000">50만 이하</option>
-                            <option value="1000000">100만 이하</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="searchResetBtn" data-i18n="discover.reset">초기화</button>
-                <button class="btn btn-primary" id="searchSubmitBtn" data-i18n="discover.submit">검색</button>
-            </div>
-        </div>
-    </div>
+    <!-- searchModal removed: form is now inline on the discover tab -->
 
     <!-- Modal: Channel Search -->
     <div class="modal-overlay" id="channelSearchModal">

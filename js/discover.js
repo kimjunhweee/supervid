@@ -8,28 +8,77 @@ let _discoverNextPageToken = null;
 let _discoverAllVideos = [];
 
 export function setupDiscover() {
-    document.getElementById('openSearchModalBtn').addEventListener('click', openSearchModal);
-    document.getElementById('closeSearchModal').addEventListener('click', closeSearchModal);
-    document.getElementById('searchModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeSearchModal(); });
+    initCustomDropdowns();
     document.getElementById('searchSubmitBtn').addEventListener('click', submitSearch);
     document.getElementById('searchResetBtn').addEventListener('click', resetSearchForm);
     document.getElementById('searchKeyword').addEventListener('keydown', e => { if (e.key === 'Enter') submitSearch(); });
 }
 
-function openSearchModal() {
-    if (_lastSearchParams) {
-        document.getElementById('searchKeyword').value = _lastSearchParams.query || '';
-        document.getElementById('searchDuration').value = _lastSearchParams.duration || '';
-        document.getElementById('searchOrder').value = _lastSearchParams.order || 'viewCount';
-        document.getElementById('searchSubMin').value = _lastSearchParams.subMin || '0';
-        document.getElementById('searchSubMax').value = _lastSearchParams.subMax || '0';
-    }
-    document.getElementById('searchModal').classList.add('active');
-    document.getElementById('searchKeyword').focus();
+function initCustomDropdowns() {
+    document.querySelectorAll('.discover-inline-select').forEach(select => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'c-select';
+        wrapper._select = select;
+
+        const trigger = document.createElement('div');
+        trigger.className = 'c-select-trigger';
+
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'c-select-value';
+        valueSpan.textContent = select.options[select.selectedIndex]?.text || '';
+
+        const chevron = document.createElement('span');
+        chevron.className = 'c-select-chevron';
+        chevron.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+        trigger.appendChild(valueSpan);
+        trigger.appendChild(chevron);
+
+        const menu = document.createElement('div');
+        menu.className = 'c-select-menu';
+
+        Array.from(select.options).forEach(opt => {
+            const item = document.createElement('div');
+            item.className = 'c-select-item' + (opt.selected ? ' selected' : '');
+            item.dataset.value = opt.value;
+            item.textContent = opt.text;
+            item.addEventListener('click', () => {
+                select.value = opt.value;
+                valueSpan.textContent = opt.text;
+                menu.querySelectorAll('.c-select-item').forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                wrapper.classList.remove('open');
+            });
+            menu.appendChild(item);
+        });
+
+        trigger.addEventListener('click', e => {
+            e.stopPropagation();
+            const isOpen = wrapper.classList.contains('open');
+            document.querySelectorAll('.c-select.open').forEach(el => el.classList.remove('open'));
+            if (!isOpen) wrapper.classList.add('open');
+        });
+
+        wrapper.appendChild(trigger);
+        wrapper.appendChild(menu);
+        select.parentNode.insertBefore(wrapper, select);
+    });
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.c-select.open').forEach(el => el.classList.remove('open'));
+    });
 }
 
-function closeSearchModal() {
-    document.getElementById('searchModal').classList.remove('active');
+function syncCustomDropdowns() {
+    document.querySelectorAll('.c-select').forEach(wrapper => {
+        const select = wrapper._select;
+        if (!select) return;
+        const selected = select.options[select.selectedIndex];
+        wrapper.querySelector('.c-select-value').textContent = selected?.text || '';
+        wrapper.querySelectorAll('.c-select-item').forEach(item => {
+            item.classList.toggle('selected', item.dataset.value === select.value);
+        });
+    });
 }
 
 function resetSearchForm() {
@@ -38,6 +87,7 @@ function resetSearchForm() {
     document.getElementById('searchOrder').value = 'viewCount';
     document.getElementById('searchSubMin').value = '0';
     document.getElementById('searchSubMax').value = '0';
+    syncCustomDropdowns();
 }
 
 function submitSearch() {
@@ -52,7 +102,6 @@ function submitSearch() {
         subMax: document.getElementById('searchSubMax').value
     };
     _lastSearchParams = params;
-    closeSearchModal();
     performSearch(params);
 }
 

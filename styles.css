@@ -943,6 +943,53 @@ body {
 .yt-channel-name small { display: block; font-size: 11px; color: var(--text-muted); font-weight: 400; }
 
 /* ===== Discover (콘텐츠 탐색) ===== */
+.discover-inline-form {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;
+}
+.discover-inline-main-row {
+    display: flex; gap: 8px; align-items: center;
+}
+.discover-inline-input {
+    flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text); font-size: 14px; outline: none;
+}
+.discover-inline-input:focus { border-color: var(--primary); }
+.discover-inline-filter-row {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.discover-inline-select { display: none; }
+
+/* Custom Select Dropdown */
+.c-select {
+    position: relative; display: inline-block;
+}
+.c-select-trigger {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg-card); color: var(--text); font-size: 13px;
+    cursor: pointer; user-select: none; white-space: nowrap;
+    transition: border-color 0.15s;
+}
+.c-select-trigger:hover { border-color: var(--ring); }
+.c-select.open .c-select-trigger { border-color: var(--primary); }
+.c-select-chevron { display: flex; align-items: center; color: var(--text-muted); transition: transform 0.15s; }
+.c-select.open .c-select-chevron { transform: rotate(180deg); }
+.c-select-menu {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0;
+    min-width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    z-index: 200; overflow: hidden;
+}
+.c-select.open .c-select-menu { display: block; }
+.c-select-item {
+    padding: 8px 14px; font-size: 13px; color: var(--text);
+    cursor: pointer; white-space: nowrap; transition: background 0.1s;
+}
+.c-select-item:hover { background: var(--accent-light); }
+.c-select-item.selected { color: var(--primary); font-weight: 500; }
+.discover-inline-sep { font-size: 13px; color: var(--text-muted); }
+
 .discover-header {
     display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
 }
