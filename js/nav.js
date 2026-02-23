@@ -49,7 +49,7 @@ export function getNavTitle(tab) {
     return { title: t(map[tab] || tab), desc: t('desc.' + tab) };
 }
 
-export const LAB_TABS = ['discover', 'channels', 'references', 'ideas', 'addetect', 'outliers'];
+export const LAB_TABS = ['channels', 'references', 'ideas', 'addetect', 'outliers'];
 
 export function switchTab(tab) {
     document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
