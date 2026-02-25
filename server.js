@@ -454,6 +454,140 @@ app.get('/api/youtube/search', requireAuth, async (req, res) => {
     }
 });
 
+// ===== DB 기반 하이브리드 검색 =====
+async function triggerCrawlForKeyword(keyword) {
+    if (!supabase) return;
+    try {
+        await supabase
+            .from('keywords')
+            .upsert({ keyword }, { onConflict: 'keyword', ignoreDuplicates: true });
+    } catch { /* 무시 */ }
+}
+
+const DB_SEARCH_THRESHOLD = 20;
+
+app.get('/api/db/search', requireAuth, async (req, res) => {
+    const { q, order = 'viewCount', subMin, subMax, viewMin, viewMax, duration, offset = '0', limit = '50', pageToken: inputPageToken } = req.query;
+    if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
+
+    const keyword = q.trim();
+    const offsetNum = parseInt(offset) || 0;
+    const limitNum = Math.min(parseInt(limit) || 50, 200);
+
+    // pageToken이 있으면 YouTube 폴백 모드 (loadMore)
+    if (!inputPageToken && supabase) {
+        try {
+            let dbQuery = supabase
+                .from('videos')
+                .select('*', { count: 'exact' })
+                .contains('keywords', [keyword]);
+
+            if (parseInt(subMin) > 0) dbQuery = dbQuery.gte('subscriber_count', parseInt(subMin));
+            if (parseInt(subMax) > 0) dbQuery = dbQuery.lte('subscriber_count', parseInt(subMax));
+            if (parseInt(viewMin) > 0) dbQuery = dbQuery.gte('view_count', parseInt(viewMin));
+            if (parseInt(viewMax) > 0) dbQuery = dbQuery.lte('view_count', parseInt(viewMax));
+            if (duration === 'short')  dbQuery = dbQuery.lte('duration_seconds', 240);
+            else if (duration === 'medium') dbQuery = dbQuery.gte('duration_seconds', 241).lte('duration_seconds', 1200);
+            else if (duration === 'long')   dbQuery = dbQuery.gte('duration_seconds', 1201);
+
+            if (order === 'date') dbQuery = dbQuery.order('published_at', { ascending: false });
+            else dbQuery = dbQuery.order('view_count', { ascending: false });
+
+            dbQuery = dbQuery.range(offsetNum, offsetNum + limitNum - 1);
+
+            const { data: rows, count, error } = await dbQuery;
+            if (!error && rows && rows.length >= DB_SEARCH_THRESHOLD) {
+                let videos = rows.map(v => ({
+                    id: v.id,
+                    title: v.title,
+                    channelId: v.channel_id,
+                    channelTitle: v.channel_title,
+                    subscriberCount: v.subscriber_count,
+                    viewCount: v.view_count,
+                    likeCount: v.like_count,
+                    commentCount: v.comment_count,
+                    publishedAt: v.published_at,
+                    thumbnail: v.thumbnail,
+                    duration: v.duration,
+                    viewToSubRatio: v.view_to_sub_ratio,
+                }));
+
+                // velocity 정렬은 서버에서 계산
+                if (order === 'velocity') {
+                    videos.sort((a, b) => {
+                        const daysA = Math.max(1, (Date.now() - new Date(a.publishedAt).getTime()) / 86400000);
+                        const daysB = Math.max(1, (Date.now() - new Date(b.publishedAt).getTime()) / 86400000);
+                        return (b.viewCount / Math.max(b.subscriberCount, 1)) / daysB
+                             - (a.viewCount / Math.max(a.subscriberCount, 1)) / daysA;
+                    });
+                } else if (order === 'performance') {
+                    videos.sort((a, b) => b.viewToSubRatio - a.viewToSubRatio);
+                }
+
+                return res.json({ videos, total: count, source: 'db', hasMore: offsetNum + limitNum < count });
+            }
+        } catch { /* DB 실패 시 YouTube 폴백 */ }
+    }
+
+    // YouTube 폴백 + 키워드 크롤링 트리거
+    triggerCrawlForKeyword(keyword);
+
+    try {
+        const apiOrder = (order === 'performance' || order === 'velocity') ? 'viewCount' : order;
+        const durationParam = duration ? `&videoDuration=${encodeURIComponent(duration)}` : '';
+        const tokenParam = inputPageToken ? `&pageToken=${encodeURIComponent(inputPageToken)}` : '';
+
+        const searchRes = await fetch(
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(keyword)}&order=${encodeURIComponent(apiOrder)}&maxResults=50${durationParam}${tokenParam}&key=${API_KEY}`
+        );
+        trackUnits('콘텐츠 검색', 100);
+        const searchData = await searchRes.json();
+        if (searchData.error) return res.status(400).json({ error: searchData.error.message });
+        if (!searchData.items || searchData.items.length === 0) return res.json({ videos: [], source: 'youtube', hasMore: false });
+
+        const videoIds = searchData.items.map(item => item.id.videoId).join(',');
+        const videosRes = await fetch(
+            `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${videoIds}&key=${API_KEY}`
+        );
+        trackUnits('영상 통계', 1);
+        const videosData = await videosRes.json();
+
+        const uniqueChannelIds = [...new Set((videosData.items || []).map(v => v.snippet.channelId))];
+        const subMap = {};
+        for (let i = 0; i < uniqueChannelIds.length; i += 50) {
+            const chunk = uniqueChannelIds.slice(i, i + 50).join(',');
+            const channelsRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${chunk}&key=${API_KEY}`);
+            trackUnits('채널 조회', 1);
+            const channelsData = await channelsRes.json();
+            (channelsData.items || []).forEach(ch => {
+                subMap[ch.id] = parseInt(ch.statistics.subscriberCount || 0);
+            });
+        }
+
+        const videos = (videosData.items || []).map(v => {
+            const viewCount = parseInt(v.statistics.viewCount || 0);
+            const subscriberCount = subMap[v.snippet.channelId] || 0;
+            return {
+                id: v.id,
+                title: v.snippet.title,
+                channelId: v.snippet.channelId,
+                channelTitle: v.snippet.channelTitle,
+                publishedAt: v.snippet.publishedAt,
+                thumbnail: v.snippet.thumbnails.medium.url,
+                viewCount,
+                likeCount: parseInt(v.statistics.likeCount || 0),
+                commentCount: parseInt(v.statistics.commentCount || 0),
+                subscriberCount,
+                viewToSubRatio: subscriberCount > 0 ? Math.round((viewCount / subscriberCount) * 100) : 0,
+            };
+        });
+
+        return res.json({ videos, source: 'youtube', hasMore: !!searchData.nextPageToken, nextPageToken: searchData.nextPageToken || null });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ===== 트렌드 영상 =====
 app.get('/api/youtube/trending', requireAuth, async (req, res) => {
     const { regionCode = 'KR', videoCategoryId, maxResults = '12' } = req.query;

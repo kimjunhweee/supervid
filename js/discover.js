@@ -6,6 +6,8 @@ import { saveAsReference } from './references.js';
 let _lastSearchParams = null;
 let _discoverNextPageToken = null;
 let _discoverAllVideos = [];
+let _discoverSource = null;  // 'db' | 'youtube'
+let _discoverOffset = 0;
 
 export function setupDiscover() {
     initCustomDropdowns();
@@ -87,6 +89,8 @@ function resetSearchForm() {
     document.getElementById('searchOrder').value = 'viewCount';
     document.getElementById('searchSubMin').value = '0';
     document.getElementById('searchSubMax').value = '0';
+    document.getElementById('searchViewMin').value = '0';
+    document.getElementById('searchViewMax').value = '0';
     syncCustomDropdowns();
 }
 
@@ -99,7 +103,9 @@ function submitSearch() {
         duration: document.getElementById('searchDuration').value,
         order: document.getElementById('searchOrder').value,
         subMin: document.getElementById('searchSubMin').value,
-        subMax: document.getElementById('searchSubMax').value
+        subMax: document.getElementById('searchSubMax').value,
+        viewMin: document.getElementById('searchViewMin').value,
+        viewMax: document.getElementById('searchViewMax').value
     };
     _lastSearchParams = params;
     performSearch(params);
@@ -117,56 +123,50 @@ async function performSearch(params, loadMore) {
     const infoEl = document.getElementById('discoverResultInfo');
     updateActiveFilters(params);
 
-    const hasSubFilter = parseInt(params.subMin) > 0 || parseInt(params.subMax) > 0;
-    const pages = hasSubFilter ? 3 : 1;
-    const perPage = hasSubFilter ? 50 : 12;
-
     if (!loadMore) {
         _discoverAllVideos = [];
         _discoverNextPageToken = null;
-        if (hasSubFilter) {
-            grid.innerHTML = `<div class="discover-loading">${t('discover.filterLoading')}</div>`;
-        } else {
-            grid.innerHTML = `<div class="discover-loading">${t('discover.loading')}</div>`;
-        }
+        _discoverSource = null;
+        _discoverOffset = 0;
+        grid.innerHTML = `<div class="discover-loading">${t('discover.loading')}</div>`;
     } else {
         const moreBtn = document.getElementById('discoverMoreBtn');
         if (moreBtn) { moreBtn.disabled = true; moreBtn.textContent = t('discover.loading'); }
     }
 
     try {
-        const apiOrder = (params.order === 'performance' || params.order === 'velocity') ? 'viewCount' : params.order;
-        const durationParam = params.duration ? `&videoDuration=${encodeURIComponent(params.duration)}` : '';
-        const tokenParam = loadMore && _discoverNextPageToken ? `&pageToken=${encodeURIComponent(_discoverNextPageToken)}` : '';
-        const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(params.query)}&order=${encodeURIComponent(apiOrder)}&maxResults=${perPage}&pages=${pages}${durationParam}${tokenParam}`);
+        const urlParams = new URLSearchParams({ q: params.query, order: params.order, limit: '50' });
+        if (params.duration) urlParams.set('duration', params.duration);
+        if (parseInt(params.subMin) > 0) urlParams.set('subMin', params.subMin);
+        if (parseInt(params.subMax) > 0) urlParams.set('subMax', params.subMax);
+        if (parseInt(params.viewMin) > 0) urlParams.set('viewMin', params.viewMin);
+        if (parseInt(params.viewMax) > 0) urlParams.set('viewMax', params.viewMax);
+
+        if (loadMore && _discoverSource === 'youtube' && _discoverNextPageToken) {
+            urlParams.set('pageToken', _discoverNextPageToken);
+        } else if (loadMore && _discoverSource === 'db') {
+            urlParams.set('offset', String(_discoverOffset));
+        }
+
+        const res = await fetch(`/api/db/search?${urlParams}`);
         if (!res.ok) {
             let msg = t('misc.searchFail');
             try { const err = await res.json(); msg = err.error || msg; } catch {}
             throw new Error(msg);
         }
         const data = await res.json();
-        let videos = data.videos || data;
+        const videos = data.videos || [];
+
+        _discoverSource = data.source;
         _discoverNextPageToken = data.nextPageToken || null;
-
-        // Subscriber filter
-        const subMin = parseInt(params.subMin) || 0;
-        const subMax = parseInt(params.subMax) || 0;
-        if (subMin > 0) videos = videos.filter(v => (v.subscriberCount || 0) >= subMin);
-        if (subMax > 0) videos = videos.filter(v => (v.subscriberCount || 0) <= subMax);
-
-        if (params.order === 'performance') {
-            videos.sort((a, b) => b.viewToSubRatio - a.viewToSubRatio);
-        } else if (params.order === 'velocity') {
-            videos.sort((a, b) => calcVelocityScore(b) - calcVelocityScore(a));
-        }
-
+        _discoverOffset += videos.length;
         _discoverAllVideos = _discoverAllVideos.concat(videos);
 
-        const infoText = hasSubFilter
-            ? t('discover.resultFiltered', { n: _discoverAllVideos.length })
-            : t('discover.resultCount', { n: _discoverAllVideos.length });
-        infoEl.textContent = infoText;
-        renderDiscoverResults(_discoverAllVideos);
+        const sourceLabel = data.source === 'db' ? '📦 DB' : '🔴 YouTube';
+        const total = data.total || _discoverAllVideos.length;
+        infoEl.textContent = `${t('discover.resultCount', { n: total })} · ${sourceLabel}`;
+
+        renderDiscoverResults(_discoverAllVideos, data.hasMore);
     } catch (err) {
         if (!loadMore) {
             grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</p></div>`;
@@ -189,10 +189,10 @@ function updateActiveFilters(params) {
     const orderLabels = { viewCount: t('discover.sortViews'), relevance: t('discover.sortRelevance'), date: t('discover.sortDate'), performance: t('discover.sortPerformance'), velocity: t('discover.sortVelocity') };
     chips.push(orderLabels[params.order] || t('discover.sortViews'));
 
+    const fmt = n => formatNumber(n);
     const subMin = parseInt(params.subMin) || 0;
     const subMax = parseInt(params.subMax) || 0;
     if (subMin > 0 || subMax > 0) {
-        const fmt = n => n >= 10000 ? formatNumber(n) : n >= 1000 ? formatNumber(n) : n;
         let subLabel = t('channel.subscribers') + ' ';
         if (subMin > 0 && subMax > 0) subLabel += `${fmt(subMin)}~${fmt(subMax)}`;
         else if (subMin > 0) subLabel += t('discover.subAbove', { n: fmt(subMin) });
@@ -200,10 +200,20 @@ function updateActiveFilters(params) {
         chips.push(subLabel);
     }
 
+    const viewMin = parseInt(params.viewMin) || 0;
+    const viewMax = parseInt(params.viewMax) || 0;
+    if (viewMin > 0 || viewMax > 0) {
+        let viewLabel = '조회수 ';
+        if (viewMin > 0 && viewMax > 0) viewLabel += `${fmt(viewMin)}~${fmt(viewMax)}`;
+        else if (viewMin > 0) viewLabel += `${fmt(viewMin)} 이상`;
+        else viewLabel += `${fmt(viewMax)} 이하`;
+        chips.push(viewLabel);
+    }
+
     container.innerHTML = chips.map(c => `<span class="discover-filter-chip">${c}</span>`).join('');
 }
 
-function renderDiscoverResults(videos) {
+function renderDiscoverResults(videos, hasMore) {
     const grid = document.getElementById('discoverGrid');
     if (!videos || videos.length === 0) {
         grid.innerHTML = `<div class="discover-empty"><p>${t('discover.noResults')}</p></div>`;
@@ -249,7 +259,7 @@ function renderDiscoverResults(videos) {
     // Load more button
     const oldBtn = document.getElementById('discoverMoreBtn');
     if (oldBtn) oldBtn.remove();
-    if (_discoverNextPageToken && _lastSearchParams) {
+    if (hasMore && _lastSearchParams) {
         const wrap = document.createElement('div');
         wrap.className = 'discover-more-wrap';
         wrap.innerHTML = `<button class="btn btn-secondary" id="discoverMoreBtn">${t('discover.loadMore')}</button>`;
