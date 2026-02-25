@@ -582,6 +582,37 @@ app.get('/api/db/search', requireAuth, async (req, res) => {
             };
         });
 
+        // YouTube 결과를 바로 DB에 저장 (백그라운드)
+        if (supabase && !inputPageToken) {
+            const rows = videos.map(v => {
+                const rawItem = (videosData.items || []).find(i => i.id === v.id);
+                const durationIso = rawItem?.contentDetails?.duration || '';
+                const durationSeconds = (() => {
+                    const m = durationIso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+                    if (!m) return 0;
+                    return (parseInt(m[1]||'0')*3600) + (parseInt(m[2]||'0')*60) + parseInt(m[3]||'0');
+                })();
+                return {
+                    id: v.id,
+                    title: v.title,
+                    channel_id: v.channelId,
+                    channel_title: v.channelTitle,
+                    subscriber_count: v.subscriberCount,
+                    view_count: v.viewCount,
+                    like_count: v.likeCount,
+                    comment_count: v.commentCount,
+                    published_at: v.publishedAt,
+                    thumbnail: v.thumbnail,
+                    duration: durationIso,
+                    duration_seconds: durationSeconds,
+                    view_to_sub_ratio: v.viewToSubRatio,
+                    keywords: [keyword],
+                    crawled_at: new Date().toISOString(),
+                };
+            });
+            supabase.from('videos').upsert(rows, { onConflict: 'id', ignoreDuplicates: false }).then(() => {}).catch(() => {});
+        }
+
         return res.json({ videos, source: 'youtube', hasMore: !!searchData.nextPageToken, nextPageToken: searchData.nextPageToken || null });
     } catch (err) {
         res.status(500).json({ error: err.message });
