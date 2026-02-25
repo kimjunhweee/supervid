@@ -16,5 +16,8 @@
     "express-session": "^1.19.0",
     "google-auth-library": "^10.5.0",
     "jsonwebtoken": "^9.0.3"
+  },
+  "devDependencies": {
+    "supabase": "^2.76.15"
   }
 }
