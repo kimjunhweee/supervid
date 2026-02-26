@@ -771,8 +771,20 @@
                         </div>
                     </div>
                     <div class="nc-settings-section">
-                        <label class="nc-settings-label" data-i18n="nc.idea.title">아이디어</label>
-                        <textarea id="ncIdea" class="nc-step-textarea" rows="3" placeholder="예: 자취생 냉장고 정리 꿀팁, 5만원 이하로 가능한 방법들..." data-i18n-placeholder="nc.idea.placeholder"></textarea>
+                        <label class="nc-settings-label">AI와 아이디어 구체화</label>
+                        <div class="nc-chat-container" id="ncChatContainer">
+                            <div class="nc-chat-messages" id="ncChatMessages"></div>
+                            <div class="nc-chat-idea-bar" id="ncChatIdeaBar">
+                                <div class="nc-chat-idea-text" id="ncChatIdeaText"></div>
+                                <button class="btn btn-primary" id="ncChatIdeaConfirm">이 아이디어로 다음 단계 →</button>
+                            </div>
+                            <div class="nc-chat-input-bar">
+                                <textarea class="nc-chat-input" id="ncChatInput" placeholder="예: 자취생 냉장고 정리 꿀팁 영상 만들고 싶어요" rows="1"></textarea>
+                                <button class="nc-chat-send" id="ncChatSend" title="전송">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     <div class="nc-settings-section">
                         <label class="nc-settings-label" data-i18n="nc.settings.uploadDate">업로드 예정일</label>

@@ -879,6 +879,87 @@ app.get('/api/youtube/outliers', requireAuth, async (req, res) => {
     }
 });
 
+// ===== AI 채팅 (Gemini) =====
+app.post('/api/ai/chat', requireAuth, async (req, res) => {
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    if (!GEMINI_API_KEY) return res.status(503).json({ error: 'GEMINI_API_KEY가 설정되지 않았습니다' });
+
+    const { messages, platform, contentType, context } = req.body;
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ error: 'messages가 필요합니다' });
+    }
+
+    const platformLabel = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', blog: '블로그', other: '기타' }[platform] || 'YouTube';
+    const typeLabel = { long: '롱폼 영상', short: '숏츠/릴스', post: '포스트/글' }[contentType] || '롱폼 영상';
+
+    // 채널 컨텍스트 구성
+    let channelContext = '';
+    if (context) {
+        if (context.channel) {
+            const ch = context.channel;
+            channelContext += `\n\n[크리에이터 채널 정보]
+- 채널명: ${ch.name}
+- 구독자: ${ch.subscribers}
+- 총 조회수: ${ch.totalViews}
+- 영상 수: ${ch.videoCount}`;
+        }
+        if (context.recentVideos && context.recentVideos.length > 0) {
+            channelContext += `\n\n[조회수 높은 최근 영상]`;
+            context.recentVideos.forEach((v, i) => {
+                channelContext += `\n${i + 1}. "${v.title}" (조회수 ${v.views?.toLocaleString() || '?'})`;
+            });
+        }
+        if (context.pipeline && context.pipeline.length > 0) {
+            channelContext += `\n\n[현재 제작 중인 콘텐츠]`;
+            context.pipeline.forEach(c => {
+                channelContext += `\n- "${c.title}" (${c.status})`;
+            });
+        }
+    }
+
+    const systemInstruction = `당신은 ${platformLabel} ${typeLabel} 콘텐츠 아이디어 코치입니다.
+사용자가 막연한 아이디어를 구체적인 콘텐츠 기획으로 발전시킬 수 있도록 대화로 도와주세요.
+${channelContext}
+
+규칙:
+1. 한 번에 최대 2개의 핵심 질문만 하세요 (짧고 친근하게)
+2. 위 채널 데이터를 참고해서 해당 채널에 맞는 맞춤 조언을 해주세요 (잘 된 영상 패턴, 채널 규모 등)
+3. 아이디어가 충분히 구체화되면 (보통 3-4번 대화 후), 반드시 마지막에 다음 형식을 포함하세요:
+   [IDEA_READY: 구체화된 아이디어 한 문장 (타겟, 핵심 내용 포함)]
+4. 한국어로 답변하세요`;
+
+    const geminiMessages = messages.map(m => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+    }));
+
+    try {
+        const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    system_instruction: { parts: [{ text: systemInstruction }] },
+                    contents: geminiMessages
+                })
+            }
+        );
+        const data = await geminiRes.json();
+        if (data.error) return res.status(500).json({ error: data.error.message });
+
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const ideaMatch = text.match(/\[IDEA_READY:\s*(.+?)\]/s);
+
+        res.json({
+            content: text,
+            idea: ideaMatch ? ideaMatch[1].trim() : null
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ===== 로컬 개발용 서버 실행 =====
 if (require.main === module) {
     const PORT = process.env.PORT || 3000;
