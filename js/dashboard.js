@@ -50,10 +50,9 @@ async function loadDashHotVideos() {
     if (!list) return;
 
     try {
-        const res = await fetch('/api/youtube/trending?regionCode=KR&maxResults=10');
+        const res = await fetch('/api/trending-videos?limit=10');
         if (!res.ok) throw new Error('fetch failed');
-        const data = await res.json();
-        const videos = data.items || data;
+        const videos = await res.json();
 
         if (!videos.length) {
             list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;">${t('dash.hotEmpty') || '영상을 불러올 수 없습니다.'}</div>`;
@@ -69,7 +68,7 @@ async function loadDashHotVideos() {
             const url = `https://www.youtube.com/watch?v=${videoId}`;
 
             return `<a class="dash-hot-item" href="${url}" target="_blank" rel="noopener">
-                <span class="dash-hot-rank">${i + 1}</span>
+                <span class="dash-hot-rank">${v.rank || i + 1}</span>
                 <img class="dash-hot-thumb" src="${thumb}" alt="" loading="lazy">
                 <div class="dash-hot-info">
                     <div class="dash-hot-title">${title}</div>

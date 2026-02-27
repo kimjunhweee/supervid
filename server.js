@@ -674,6 +674,62 @@ app.get('/api/youtube/trending', requireAuth, async (req, res) => {
     }
 });
 
+// ===== 트렌드 영상 (DB) =====
+app.get('/api/trending-videos', requireAuth, async (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+
+    try {
+        // 오늘 데이터 조회
+        const today = new Date().toISOString().slice(0, 10);
+        let { data, error } = await supabase
+            .from('trending_videos')
+            .select('*')
+            .eq('crawled_date', today)
+            .order('rank', { ascending: true })
+            .limit(limit);
+
+        // 오늘 데이터 없으면 가장 최근 날짜 fallback
+        if (!error && (!data || data.length === 0)) {
+            const { data: latest } = await supabase
+                .from('trending_videos')
+                .select('crawled_date')
+                .order('crawled_date', { ascending: false })
+                .limit(1);
+
+            if (latest && latest.length > 0) {
+                ({ data, error } = await supabase
+                    .from('trending_videos')
+                    .select('*')
+                    .eq('crawled_date', latest[0].crawled_date)
+                    .order('rank', { ascending: true })
+                    .limit(limit));
+            }
+        }
+
+        if (error) return res.status(500).json({ error: error.message });
+
+        const videos = (data || []).map(v => ({
+            id: v.id,
+            title: v.title,
+            channelId: v.channel_id,
+            channelTitle: v.channel_title,
+            subscriberCount: v.subscriber_count,
+            viewCount: v.view_count,
+            likeCount: v.like_count,
+            commentCount: v.comment_count,
+            publishedAt: v.published_at,
+            thumbnail: v.thumbnail,
+            duration: v.duration,
+            rank: v.rank,
+            crawledDate: v.crawled_date,
+        }));
+
+        res.json(videos);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ===== 키워드 연관 검색어 =====
 app.get('/api/youtube/keyword-suggestions', requireAuth, async (req, res) => {
     const { q } = req.query;
