@@ -1,6 +1,6 @@
 // ===== Dashboard + Area Chart =====
 import { state } from './state.js';
-import { parseDurationToSeconds } from './utils.js';
+import { formatNumber, parseDurationToSeconds, escapeHtml } from './utils.js';
 // Circular import (resolved at runtime):
 import { switchTab } from './nav.js';
 
@@ -34,9 +34,52 @@ export function updateWelcomeGreeting() {
     }
 }
 
+let _hotVideosLoaded = false;
+
 export function renderDashboard() {
     updateWelcomeGreeting();
     renderChart();
+    if (!_hotVideosLoaded) {
+        _hotVideosLoaded = true;
+        loadDashHotVideos();
+    }
+}
+
+async function loadDashHotVideos() {
+    const list = document.getElementById('dashHotList');
+    if (!list) return;
+
+    try {
+        const res = await fetch('/api/youtube/trending?regionCode=KR&maxResults=10');
+        if (!res.ok) throw new Error('fetch failed');
+        const data = await res.json();
+        const videos = data.items || data;
+
+        if (!videos.length) {
+            list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;">${t('dash.hotEmpty') || '영상을 불러올 수 없습니다.'}</div>`;
+            return;
+        }
+
+        list.innerHTML = videos.slice(0, 10).map((v, i) => {
+            const thumb = v.thumbnail || '';
+            const title = escapeHtml(v.title || '');
+            const channel = escapeHtml(v.channelTitle || '');
+            const views = v.viewCount ? formatNumber(Number(v.viewCount)) : '';
+            const videoId = v.id || '';
+            const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+            return `<a class="dash-hot-item" href="${url}" target="_blank" rel="noopener">
+                <span class="dash-hot-rank">${i + 1}</span>
+                <img class="dash-hot-thumb" src="${thumb}" alt="" loading="lazy">
+                <div class="dash-hot-info">
+                    <div class="dash-hot-title">${title}</div>
+                    <div class="dash-hot-meta">${channel}${views ? ' · ' + views + (getLang() === 'en' ? ' views' : '회') : ''}</div>
+                </div>
+            </a>`;
+        }).join('');
+    } catch (e) {
+        list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;">${t('dash.hotError') || '영상을 불러오지 못했습니다.'}</div>`;
+    }
 }
 
 // ===== Area Chart =====
