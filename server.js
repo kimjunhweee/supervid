@@ -25,10 +25,15 @@ async function ensureUser(user) {
     const { error } = await supabase
         .from('user_data')
         .upsert(
-            { google_id: user.id, email: user.email, name: user.name, last_login_at: new Date().toISOString() },
-            { onConflict: 'google_id', ignoreDuplicates: false }
+            { google_id: user.id, email: user.email, name: user.name },
+            { onConflict: 'google_id', ignoreDuplicates: true }
         );
     if (error) console.error('ensureUser 오류:', error.message);
+    // 접속할 때마다 last_login_at 갱신
+    await supabase
+        .from('user_data')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('google_id', user.id);
 }
 
 // ===== Supabase 캐시 헬퍼 =====
