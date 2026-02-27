@@ -114,7 +114,20 @@ export function openAddContent(date) {
 
 function ncNext() {
     if (_ncCurrentStep === 0) {
-        if (!_ncIdeaText) { toast('AI와 대화해서 아이디어를 먼저 확정해주세요'); document.getElementById('ncChatInput').focus(); return; }
+        // AI 확정 아이디어 우선, 없으면 마지막 user 메시지, 그것도 없으면 차단
+        if (!_ncIdeaText) {
+            if (_ncChatIdea) {
+                _ncIdeaText = _ncChatIdea;
+            } else if (_ncChatMessages.length > 0) {
+                const lastUser = [..._ncChatMessages].reverse().find(m => m.role === 'user');
+                _ncIdeaText = lastUser ? lastUser.content : '';
+            }
+        }
+        if (!_ncIdeaText) {
+            toast('아이디어를 입력해주세요');
+            document.getElementById('ncChatInput').focus();
+            return;
+        }
     }
     if (_ncCurrentStep === 1) {
         const title = document.getElementById('ncTitle').value.trim();
