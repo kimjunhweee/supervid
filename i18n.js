@@ -88,7 +88,7 @@ const I18N = {
         'dash.chartMonth3': '최근 3개월',
         'dash.chartMonth6': '최근 6개월',
         'dash.chartYear1': '최근 1년',
-        'dash.hotVideos': '오늘의 핫 영상',
+        'dash.hotVideos': '오늘의 핫 비디오',
         'dash.hotLoading': '로딩 중...',
         'dash.hotEmpty': '영상을 불러올 수 없습니다.',
         'dash.hotError': '영상을 불러오지 못했습니다.',
