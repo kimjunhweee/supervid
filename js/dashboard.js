@@ -40,7 +40,6 @@ export function renderDashboard() {
     updateWelcomeGreeting();
     renderChart();
     if (!_hotVideosLoaded) {
-        _hotVideosLoaded = true;
         loadDashHotVideos();
     }
 }
@@ -51,8 +50,9 @@ async function loadDashHotVideos() {
 
     try {
         const res = await fetch('/api/trending-videos?limit=10');
-        if (!res.ok) throw new Error('fetch failed');
+        if (!res.ok) throw new Error('fetch failed: ' + res.status);
         const videos = await res.json();
+        _hotVideosLoaded = true;
 
         if (!videos.length) {
             list.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px;">${t('dash.hotEmpty') || '영상을 불러올 수 없습니다.'}</div>`;
