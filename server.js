@@ -25,8 +25,8 @@ async function ensureUser(user) {
     const { error } = await supabase
         .from('user_data')
         .upsert(
-            { google_id: user.id, email: user.email, name: user.name },
-            { onConflict: 'google_id', ignoreDuplicates: true }
+            { google_id: user.id, email: user.email, name: user.name, last_login_at: new Date().toISOString() },
+            { onConflict: 'google_id', ignoreDuplicates: false }
         );
     if (error) console.error('ensureUser 오류:', error.message);
 }
