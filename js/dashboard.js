@@ -22,6 +22,11 @@ export function updateWelcomeGreeting() {
     const msgs = getWelcomeMessages();
     msgEl.textContent = msgs[Math.floor(Math.random() * msgs.length)];
 
+    // 채널 아바타 표시
+    const avatarEl = document.getElementById('welcomeAvatar');
+    const thumb = localStorage.getItem('creatorhub_yt_thumb');
+    if (avatarEl && thumb) { avatarEl.src = thumb; avatarEl.style.display = ''; }
+
     const ctaBtn = document.getElementById('welcomeNewContent');
     if (ctaBtn && !ctaBtn._bound) {
         ctaBtn.addEventListener('click', () => switchTab('newcontent'));

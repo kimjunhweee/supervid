@@ -240,11 +240,15 @@ body {
 /* ===== Tab Content ===== */
 .tab-content { display: none; animation: fadeIn 0.2s ease; padding: 20px var(--content-px) var(--content-px); }
 .tab-content.active { display: block; }
-#tab-dashboard { max-width: 960px; margin-left: auto; margin-right: auto; }
+#tab-dashboard { max-width: 864px; margin-left: auto; margin-right: auto; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ===== Welcome Greeting ===== */
-.welcome-greeting { padding: 24px 0 0; margin-bottom: 16px; }
+.welcome-greeting { padding: 24px 0 0; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; }
+.welcome-avatar {
+    width: 48px; height: 48px; border-radius: 50%; object-fit: cover;
+    border: 2px solid var(--border); flex-shrink: 0;
+}
 
 /* ===== CTA Card ===== */
 .cta-card {

@@ -143,6 +143,13 @@ export async function loadYouTubeData(forceRefresh = false) {
 
         updateMyChannelHero(channel);
 
+        // 대시보드 웰컴 아바타용 썸네일 저장
+        if (channel.thumbnail) {
+            localStorage.setItem('creatorhub_yt_thumb', channel.thumbnail);
+            const avatarEl = document.getElementById('welcomeAvatar');
+            if (avatarEl) { avatarEl.src = channel.thumbnail; avatarEl.style.display = ''; }
+        }
+
         emptyEl.style.display = 'none';
         statsEl.style.display = 'grid';
         videosCard.style.display = 'block';
