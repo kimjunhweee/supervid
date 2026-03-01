@@ -43,6 +43,13 @@ let _hotVideosLoaded = false;
 
 export function renderDashboard() {
     updateWelcomeGreeting();
+
+    // 콘텐츠가 있는 기존 유저는 CTA 카드 숨김
+    const ctaCard = document.getElementById('ctaCard');
+    if (ctaCard) {
+        ctaCard.style.display = (state.contents && state.contents.length > 0) ? 'none' : '';
+    }
+
     renderChart();
     if (!_hotVideosLoaded) {
         loadDashHotVideos();
