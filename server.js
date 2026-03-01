@@ -119,10 +119,12 @@ const COOKIE_OPTS = {
 
 // ===== API 사용량 추적 =====
 const API_DAILY_LIMIT = 10000;
-const apiUsage = { date: new Date().toISOString().slice(0, 10), units: 0, breakdown: {} };
+const apiUsage = { date: '', units: 0, breakdown: {} };
 
-function trackUnits(category, units) {
+async function trackUnits(category, units) {
     const today = new Date().toISOString().slice(0, 10);
+
+    // 인메모리 업데이트 (기존 로직 유지)
     if (apiUsage.date !== today) {
         apiUsage.date = today;
         apiUsage.units = 0;
@@ -130,6 +132,17 @@ function trackUnits(category, units) {
     }
     apiUsage.units += units;
     apiUsage.breakdown[category] = (apiUsage.breakdown[category] || 0) + units;
+
+    // Supabase 영속화
+    if (!supabase) return;
+    const key = `api_usage|${today}`;
+    try {
+        const cached = await getCached(key);
+        const current = cached || { units: 0, breakdown: {} };
+        current.units += units;
+        current.breakdown[category] = (current.breakdown[category] || 0) + units;
+        await setCache(key, current, 48 * 60 * 60 * 1000);
+    } catch { /* 실패해도 인메모리에는 기록됨 */ }
 }
 
 // ===== 인증 라우트 =====
@@ -234,8 +247,26 @@ app.put('/api/data', requireAuth, async (req, res) => {
 });
 
 // ===== API 사용량 조회 =====
-app.get('/api/youtube/usage', requireAuth, (req, res) => {
+app.get('/api/youtube/usage', requireAuth, async (req, res) => {
     const today = new Date().toISOString().slice(0, 10);
+
+    // Supabase에서 영속화된 사용량 조회
+    if (supabase) {
+        try {
+            const cached = await getCached(`api_usage|${today}`);
+            if (cached) {
+                return res.json({
+                    date: today,
+                    used: cached.units,
+                    limit: API_DAILY_LIMIT,
+                    remaining: Math.max(0, API_DAILY_LIMIT - cached.units),
+                    breakdown: cached.breakdown
+                });
+            }
+        } catch { /* Supabase 실패 시 인메모리 폴백 */ }
+    }
+
+    // 인메모리 폴백
     if (apiUsage.date !== today) {
         apiUsage.date = today;
         apiUsage.units = 0;
@@ -950,8 +981,8 @@ app.post('/api/ai/chat', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'messages가 필요합니다' });
     }
 
-    const platformLabel = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', blog: '블로그', other: '기타' }[platform] || 'YouTube';
-    const typeLabel = { long: '롱폼 영상', short: '숏츠/릴스', post: '포스트/글' }[contentType] || '롱폼 영상';
+    const platformLabel = { youtube: 'YouTube', instagram: 'Instagram', tiktok: 'TikTok', other: '기타' }[platform] || 'YouTube';
+    const typeLabel = { long: '롱폼 영상', short: '숏츠/릴스' }[contentType] || '롱폼 영상';
 
     // 채널 컨텍스트 구성
     let channelContext = '';
@@ -976,18 +1007,46 @@ app.post('/api/ai/chat', requireAuth, async (req, res) => {
                 channelContext += `\n- "${c.title}" (${c.status})`;
             });
         }
+        if (context.previousChat && Array.isArray(context.previousChat) && context.previousChat.length > 0) {
+            channelContext += `\n\n[이전 대화 기록]`;
+            context.previousChat.forEach(m => {
+                channelContext += `\n${m.role === 'user' ? '사용자' : 'AI'}: ${m.content}`;
+            });
+            channelContext += `\n위 대화에서 파악된 크리에이터 정보(타겟, 방향, 선호 등)를 기억하고 일관된 조언을 이어가세요.`;
+        }
     }
 
-    const systemInstruction = `당신은 ${platformLabel} ${typeLabel} 콘텐츠 아이디어 코치입니다.
-사용자가 막연한 아이디어를 구체적인 콘텐츠 기획으로 발전시킬 수 있도록 대화로 도와주세요.
+    const systemInstruction = `당신은 ${platformLabel} ${typeLabel} 전문 콘텐츠 기획자입니다.
+크리에이터의 막연한 아이디어를 클릭할 수밖에 없는 콘텐츠로 구체화하는 것이 당신의 역할입니다.
 ${channelContext}
 
-규칙:
-1. 한 번에 최대 2개의 핵심 질문만 하세요 (짧고 친근하게)
-2. 위 채널 데이터를 참고해서 해당 채널에 맞는 맞춤 조언을 해주세요 (잘 된 영상 패턴, 채널 규모 등)
-3. 아이디어가 충분히 구체화되면 (보통 3-4번 대화 후), 반드시 마지막에 다음 형식을 포함하세요:
-   [IDEA_READY: 구체화된 아이디어 한 문장 (타겟, 핵심 내용 포함)]
-4. 한국어로 답변하세요`;
+# 채널 분석 기준
+- 조회수 높은 영상의 공통점(주제, 제목 패턴, 포맷)을 파악하고 이를 근거로 조언하세요
+- 구독자 대비 조회수 비율이 높은 영상은 알고리즘이 밀어준 콘텐츠입니다. 이런 패턴을 참고하세요
+- 채널 규모에 맞는 현실적 전략을 제시하세요:
+  · 1만 이하: 검색 유입 + 니치 공략, 키워드 중심 제목
+  · 1만~10만: 기존 성공 포맷 변형 + 시리즈화
+  · 10만 이상: 트렌드 선점 + 브랜딩 강화
+
+# 대화 흐름
+아래 3단계를 순서대로 진행하되, 각 단계는 해당 정보가 충분히 확보될 때까지 머무르세요.
+사용자 메시지 1개 = 1단계가 아닙니다. 정보가 부족하면 같은 단계에서 추가 질문하세요.
+
+1단계 — 방향 탐색: 누구를 위한 콘텐츠인지, 어떤 주제/감정/가치를 다룰지 파악. 타겟과 주제가 명확해질 때까지 이 단계에 머무르세요.
+2단계 — 차별화: 같은 주제의 기존 영상과 뭐가 다른지, 첫 5초 후킹 전략. 차별점이 구체적으로 나올 때까지 진행하세요.
+3단계 — 확정: 제목 후보 2~3개와 핵심 구성을 제안한 뒤 [IDEA_READY] 태그를 출력하세요.
+
+- 단, 사용자가 처음부터 타겟/주제/차별점을 모두 갖춘 구체적 아이디어를 가져왔다면 바로 3단계로 가세요
+
+# 응답 규칙
+- 한 번에 질문은 최대 2개, 각 질문은 한 줄로 끝내세요
+- 답변은 5문장 이내로 핵심만. 불필요한 인사, 칭찬, 반복 금지
+- 조언할 때는 반드시 채널 데이터에서 근거를 들어 설명하세요 (예: "조회수 높은 영상 3개가 모두 ~패턴이니...")
+- 한국어로 답변하세요
+
+# 아이디어 확정
+아이디어가 구체화되면 반드시 마지막에 다음 형식을 포함하세요:
+[IDEA_READY: 구체화된 아이디어 한 문장 (타겟, 핵심 내용 포함)]`;
 
     const geminiMessages = messages.map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',

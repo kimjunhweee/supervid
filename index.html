@@ -717,7 +717,7 @@
                     <p class="nc-step-desc" data-i18n="nc.setup.desc">플랫폼과 유형을 정하고 아이디어를 입력하세요</p>
                     <div class="nc-settings-section">
                         <label class="nc-settings-label" data-i18n="nc.settings.platform">플랫폼</label>
-                        <div class="nc-option-grid" id="ncPlatformGrid">
+                        <div class="nc-option-grid nc-option-grid-4" id="ncPlatformGrid">
                             <label class="nc-option-card active" data-value="youtube">
                                 <input type="radio" name="ncPlatform" value="youtube" checked>
                                 <span class="nc-option-icon">
@@ -739,13 +739,6 @@
                                 </span>
                                 <span class="nc-option-label">TikTok</span>
                             </label>
-                            <label class="nc-option-card" data-value="blog">
-                                <input type="radio" name="ncPlatform" value="blog">
-                                <span class="nc-option-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                                </span>
-                                <span class="nc-option-label">Blog</span>
-                            </label>
                             <label class="nc-option-card" data-value="other">
                                 <input type="radio" name="ncPlatform" value="other">
                                 <span class="nc-option-icon">
@@ -757,7 +750,7 @@
                     </div>
                     <div class="nc-settings-section">
                         <label class="nc-settings-label" data-i18n="nc.settings.type">유형</label>
-                        <div class="nc-option-grid nc-option-grid-3" id="ncTypeGrid">
+                        <div class="nc-option-grid nc-option-grid-2" id="ncTypeGrid">
                             <label class="nc-option-card active" data-value="long">
                                 <input type="radio" name="ncType" value="long" checked>
                                 <span class="nc-option-icon">
@@ -772,25 +765,19 @@
                                 </span>
                                 <span class="nc-option-label" data-i18n="type.shortReels">숏츠/릴스</span>
                             </label>
-                            <label class="nc-option-card" data-value="post">
-                                <input type="radio" name="ncType" value="post">
-                                <span class="nc-option-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                                </span>
-                                <span class="nc-option-label" data-i18n="type.postArticle">포스트/글</span>
-                            </label>
                         </div>
                     </div>
                     <div class="nc-settings-section">
                         <label class="nc-settings-label">AI와 아이디어 구체화</label>
                         <div class="nc-chat-container" id="ncChatContainer">
+                            <button class="nc-new-chat-btn" id="ncNewChatBtn" title="새 대화">↻ 새 대화</button>
                             <div class="nc-chat-messages" id="ncChatMessages"></div>
                             <div class="nc-chat-idea-bar" id="ncChatIdeaBar">
                                 <div class="nc-chat-idea-text" id="ncChatIdeaText"></div>
                                 <button class="btn btn-primary" id="ncChatIdeaConfirm">이 아이디어로 다음 단계 →</button>
                             </div>
                             <div class="nc-chat-input-bar">
-                                <textarea class="nc-chat-input" id="ncChatInput" placeholder="예: 자취생 냉장고 정리 꿀팁 영상 만들고 싶어요" rows="1"></textarea>
+                                <textarea class="nc-chat-input" id="ncChatInput" placeholder="어떤 영상을 만들어 볼까요?" rows="1"></textarea>
                                 <button class="nc-chat-send" id="ncChatSend" title="전송">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
                                 </button>
@@ -811,19 +798,6 @@
                     <div class="nc-settings-section">
                         <label class="nc-settings-label" data-i18n="nc.title.title">제목</label>
                         <input type="text" id="ncTitle" class="nc-step-input" placeholder="제목을 입력하세요" data-i18n-placeholder="nc.title.placeholder">
-                        <div class="nc-keyword-chips" id="ncKeywordChips"></div>
-                    </div>
-                    <!-- 레퍼런스 검색 -->
-                    <div class="nc-settings-section">
-                        <label class="nc-settings-label" data-i18n="nc.ref.title">레퍼런스 영상</label>
-                        <div class="nc-ref-search-bar">
-                            <input id="ncRefSearchInput" class="nc-step-input" placeholder="검색어 수정..." data-i18n-placeholder="nc.ref.searchPlaceholder">
-                            <button class="btn btn-primary" id="ncRefSearchBtn" data-i18n="nc.ref.searchBtn">검색</button>
-                        </div>
-                        <div class="nc-ref-chips" id="ncRefChips"></div>
-                        <div class="nc-ref-loading" id="ncRefLoading" style="display:none" data-i18n="nc.ref.loading">검색 중...</div>
-                        <div class="nc-ref-list" id="ncRefList"></div>
-                        <div class="nc-title-patterns" id="ncTitlePatterns"></div>
                     </div>
                 </div>
 
@@ -837,7 +811,6 @@
                         <div class="nc-review-row"><span class="nc-review-label" data-i18n="nc.settings.platform">플랫폼</span><span id="ncReviewPlatform">-</span></div>
                         <div class="nc-review-row"><span class="nc-review-label" data-i18n="nc.settings.type">유형</span><span id="ncReviewType">-</span></div>
                         <div class="nc-review-row"><span class="nc-review-label" data-i18n="nc.settings.uploadDate">업로드 예정일</span><span id="ncReviewDate">-</span></div>
-                        <div class="nc-review-row"><span class="nc-review-label" data-i18n="nc.ref.title">레퍼런스</span><span id="ncReviewRefs">-</span></div>
                     </div>
                 </div>
 
@@ -878,7 +851,6 @@
                                 <option value="youtube">YouTube</option>
                                 <option value="instagram">Instagram</option>
                                 <option value="tiktok">TikTok</option>
-                                <option value="blog">Blog</option>
                                 <option value="other" data-i18n="platform.other">기타</option>
                             </select>
                         </div>
@@ -904,7 +876,6 @@
                             <select id="contentType">
                                 <option value="long" data-i18n="type.longVideo">롱폼 영상</option>
                                 <option value="short" data-i18n="type.shortReels">숏츠/릴스</option>
-                                <option value="post" data-i18n="type.postArticle">포스트/글</option>
                             </select>
                         </div>
                     </div>

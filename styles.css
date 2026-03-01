@@ -1413,14 +1413,14 @@ body {
 }
 .nc-step.active .nc-step-label { color: var(--text-primary); }
 .nc-step.done .nc-step-dot {
-    background: var(--green); color: #fff; border-color: var(--green);
+    background: var(--text-secondary); color: var(--bg-primary); border-color: var(--text-secondary);
 }
 .nc-step.done .nc-step-label { color: var(--text-secondary); }
 .nc-step-line {
     flex: 1; height: 2px; background: var(--border);
     margin: 0 8px; transition: background 0.3s ease;
 }
-.nc-step-line.done { background: var(--green); }
+.nc-step-line.done { background: var(--text-secondary); }
 
 /* Step content */
 .nc-step-content {
@@ -1459,7 +1459,17 @@ body {
 .nc-chat-container {
     border: 1px solid var(--border); border-radius: var(--radius-sm);
     overflow: hidden; display: flex; flex-direction: column;
-    background: var(--bg-secondary);
+    background: var(--bg-secondary); position: relative;
+}
+.nc-new-chat-btn {
+    position: absolute; top: 8px; right: 8px; z-index: 2;
+    background: var(--bg-primary); border: 1px solid var(--border);
+    color: var(--text-secondary); font-size: 12px; padding: 4px 10px;
+    border-radius: var(--radius-sm); cursor: pointer;
+    transition: background .15s, color .15s;
+}
+.nc-new-chat-btn:hover {
+    background: var(--bg-tertiary); color: var(--text-primary);
 }
 .nc-chat-messages {
     min-height: 200px; max-height: 320px; overflow-y: auto;
@@ -1506,9 +1516,12 @@ body {
     font-size: 14px; font-weight: 600; color: var(--text-primary); line-height: 1.4;
 }
 .nc-chat-input-bar {
-    display: flex; align-items: flex-end; gap: 8px;
-    padding: 10px 12px; border-top: 1px solid var(--border); background: var(--bg-primary);
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 6px 6px 16px; margin: 8px 10px 10px;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: var(--bg-tertiary); transition: border-color var(--transition);
 }
+.nc-chat-input-bar:focus-within { border-color: var(--ring); }
 .nc-chat-input {
     flex: 1; border: none; outline: none; background: transparent;
     font-size: 14px; font-family: inherit; color: var(--text-primary);
@@ -1516,21 +1529,23 @@ body {
 }
 .nc-chat-input::placeholder { color: var(--text-muted); }
 .nc-chat-send {
-    width: 34px; height: 34px; border-radius: 50%; background: var(--ring);
+    width: 34px; height: 34px; border-radius: 50%; background: var(--accent);
     border: none; cursor: pointer; color: white; display: flex; align-items: center;
-    justify-content: center; flex-shrink: 0; transition: opacity var(--transition);
+    justify-content: center; flex-shrink: 0; transition: background var(--transition);
 }
-.nc-chat-send:hover { opacity: 0.85; }
+.nc-chat-send:hover { background: var(--accent-hover); }
 .nc-chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* Option cards (platform, type) */
 .nc-option-grid {
     display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
 }
+.nc-option-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.nc-option-grid-4 { grid-template-columns: repeat(4, 1fr); }
 .nc-option-grid-3 { grid-template-columns: repeat(3, 1fr); }
 .nc-option-card {
-    display: flex; flex-direction: column; align-items: center; gap: 10px;
-    padding: 20px 12px; border: 2px solid var(--border); border-radius: var(--radius);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 12px 12px; border: 2px solid var(--border); border-radius: var(--radius);
     cursor: pointer; transition: all var(--transition); text-align: center;
 }
 .nc-option-card:hover { border-color: var(--ring); background: var(--bg-hover); }
