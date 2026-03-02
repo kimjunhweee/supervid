@@ -2,6 +2,17 @@
 import { state, syncToServer } from './state.js';
 import { escapeHtml, formatNumber, toast } from './utils.js';
 import { checkGuestBlock, logout } from './auth.js';
+
+function animateCount(el, target, duration = 800) {
+    const start = performance.now();
+    const update = (now) => {
+        const progress = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+        el.textContent = Math.round(target * eased).toLocaleString();
+        if (progress < 1) requestAnimationFrame(update);
+    };
+    requestAnimationFrame(update);
+}
 // Circular import (resolved at runtime):
 import { renderChart } from './dashboard.js';
 
@@ -228,8 +239,8 @@ export function updateMyChannelHero(channel) {
         const subs = channel.subscriberCount || 0;
         const views = channel.viewCount || 0;
 
-        document.getElementById('myChSubscribers').textContent = subs.toLocaleString();
-        document.getElementById('myChTotalViews').textContent = views.toLocaleString();
+        animateCount(document.getElementById('myChSubscribers'), subs);
+        animateCount(document.getElementById('myChTotalViews'), views);
 
         const subMs = calcMilestone(subs);
         document.getElementById('myChSubsProgress').style.width = subMs.pct + '%';
@@ -242,7 +253,7 @@ export function updateMyChannelHero(channel) {
         document.getElementById('myChViewsMax').textContent = formatMilestone(viewMs.max);
 
         const videos = channel.videoCount || 0;
-        document.getElementById('myChVideoCount').textContent = videos.toLocaleString();
+        animateCount(document.getElementById('myChVideoCount'), videos);
         const videoMs = calcMilestone(videos);
         document.getElementById('myChVideosProgress').style.width = videoMs.pct + '%';
         document.getElementById('myChVideosMin').textContent = formatMilestone(videoMs.min);

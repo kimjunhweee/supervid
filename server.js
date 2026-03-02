@@ -213,7 +213,7 @@ app.get('/api/data', requireAuth, async (req, res) => {
 
     const { data, error } = await supabase
         .from('user_data')
-        .select('contents, refs, ref_folders, upload_goal, weekly_goal, yt_channel, updated_at')
+        .select('contents, refs, ref_folders, upload_goal, weekly_goal, yt_channel, saved_channels, updated_at')
         .eq('google_id', req.user.id)
         .single();
 
@@ -227,7 +227,7 @@ app.get('/api/data', requireAuth, async (req, res) => {
 app.put('/api/data', requireAuth, async (req, res) => {
     if (!supabase) return res.json({ noDb: true });
 
-    const allowed = ['contents', 'refs', 'ref_folders', 'upload_goal', 'weekly_goal', 'yt_channel'];
+    const allowed = ['contents', 'refs', 'ref_folders', 'upload_goal', 'weekly_goal', 'yt_channel', 'saved_channels'];
     const patch = {};
     for (const key of allowed) {
         if (req.body[key] !== undefined) patch[key] = req.body[key];

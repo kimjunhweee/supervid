@@ -5,6 +5,7 @@ export const state = {
     contents: JSON.parse(localStorage.getItem('creatorhub_contents') || '[]'),
     references: JSON.parse(localStorage.getItem('creatorhub_references') || '[]'),
     refFolders: JSON.parse(localStorage.getItem('creatorhub_ref_folders') || '[]'),
+    savedChannels: JSON.parse(localStorage.getItem('creatorhub_saved_channels') || '[]'),
     activeRefFolder: null,
     ytVideos: [],
     currentTab: 'dashboard',
@@ -29,6 +30,10 @@ export function saveReferences() { localStorage.setItem('creatorhub_references',
 export function saveRefFolders() {
     localStorage.setItem('creatorhub_ref_folders', JSON.stringify(state.refFolders));
     syncToServer({ ref_folders: state.refFolders });
+}
+export function saveSavedChannels() {
+    localStorage.setItem('creatorhub_saved_channels', JSON.stringify(state.savedChannels));
+    syncToServer({ saved_channels: state.savedChannels });
 }
 
 // ===== Server Sync =====
@@ -75,6 +80,7 @@ export async function loadDataFromServer() {
             if (data.contents) { state.contents = data.contents; localStorage.setItem('creatorhub_contents', JSON.stringify(data.contents)); }
             if (data.refs) { state.references = data.refs; localStorage.setItem('creatorhub_references', JSON.stringify(data.refs)); }
             if (data.ref_folders) { state.refFolders = data.ref_folders; localStorage.setItem('creatorhub_ref_folders', JSON.stringify(data.ref_folders)); }
+            if (data.saved_channels) { state.savedChannels = data.saved_channels; localStorage.setItem('creatorhub_saved_channels', JSON.stringify(data.saved_channels)); }
         } else if (hasLocalContents) {
             // 서버 비어있고 localStorage에 데이터 있음 → 마이그레이션
             await fetch('/api/data', {
@@ -84,6 +90,7 @@ export async function loadDataFromServer() {
                     contents: state.contents,
                     refs: state.references,
                     ref_folders: state.refFolders,
+                    saved_channels: state.savedChannels,
                     upload_goal: parseInt(localStorage.getItem('creatorhub_upload_goal')) || 4,
                     weekly_goal: parseInt(localStorage.getItem('creatorhub_weekly_goal')) || 1,
                     yt_channel: localStorage.getItem('creatorhub_yt_channel') || null

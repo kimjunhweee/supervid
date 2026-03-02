@@ -89,7 +89,7 @@ body {
 .menu-item {
     display: flex; align-items: center; gap: 10px; padding: 8px 12px;
     border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary);
-    font-size: 13.5px; font-weight: 500; transition: all var(--transition); margin-bottom: 2px;
+    font-size: 13.5px; font-weight: 600; transition: all var(--transition); margin-bottom: 2px;
 }
 .menu-item:hover { background: var(--bg-hover); color: var(--text-primary); }
 .menu-item.active { background: var(--accent-light); color: var(--accent); }
@@ -116,7 +116,7 @@ body {
 .sidebar-yt-link {
     display: flex; align-items: center; gap: 10px; padding: 8px 12px;
     border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary);
-    font-size: 13.5px; font-weight: 500; transition: all var(--transition);
+    font-size: 13.5px; font-weight: 600; transition: all var(--transition);
     margin-bottom: 2px; text-decoration: none; width: 100%;
 }
 .sidebar-yt-link:hover { background: var(--bg-hover); color: var(--text-primary); }
@@ -240,7 +240,7 @@ body {
 /* ===== Tab Content ===== */
 .tab-content { display: none; animation: fadeIn 0.2s ease; padding: 20px var(--content-px) var(--content-px); }
 .tab-content.active { display: block; }
-#tab-dashboard { max-width: 864px; margin-left: auto; margin-right: auto; }
+#tab-dashboard, #tab-calendar { max-width: 864px; margin-left: auto; margin-right: auto; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ===== Welcome Greeting ===== */
@@ -1121,40 +1121,121 @@ body {
 
 /* ===== Channels (채널 탐색) ===== */
 .channel-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
 }
 .channel-card {
-    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 20px; display: flex; flex-direction: column; align-items: center;
-    text-align: center; transition: all var(--transition);
+    background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px 16px; display: flex; align-items: center; gap: 14px;
+    cursor: pointer; position: relative; transition: all var(--transition);
 }
 .channel-card:hover { border-color: var(--ring); background: var(--bg-hover); }
 .channel-card-thumb {
-    width: 72px; height: 72px; border-radius: 50%; object-fit: cover;
-    background: var(--bg-hover); margin-bottom: 12px;
+    width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
+    background: var(--bg-hover); flex-shrink: 0;
 }
+.channel-card-body { flex: 1; min-width: 0; padding-right: 20px; }
 .channel-card-name {
-    font-size: 14px; font-weight: 600; margin-bottom: 2px;
-    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+    font-size: 14px; font-weight: 600; margin-bottom: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.channel-card-handle {
-    font-size: 12px; color: var(--text-muted); margin-bottom: 10px;
+.channel-card-meta {
+    font-size: 12px; color: var(--text-muted); line-height: 1.4;
 }
-.channel-card-desc {
-    font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px;
+.ch-result-sort {
+    display: flex; gap: 4px; margin-bottom: 12px;
+}
+
+.channel-card .ch-bookmark-btn {
+    position: absolute; top: 8px; right: 8px; background: none; border: none;
+    font-size: 16px; cursor: pointer; color: var(--text-muted); line-height: 1; padding: 4px;
+}
+.channel-card .ch-bookmark-btn:hover { color: var(--accent); }
+.channel-card .ch-bookmark-btn.active { color: var(--accent); }
+
+/* Saved Channels */
+.ch-saved-section { margin-bottom: 20px; }
+.ch-saved-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+}
+.ch-saved-header h4 { font-size: 14px; font-weight: 600; }
+.ch-saved-list {
+    display: flex; gap: 10px; flex-wrap: wrap;
+}
+.ch-saved-chip {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: var(--radius);
+    background: var(--bg-card); border: 1px solid var(--border); cursor: pointer;
+    transition: all var(--transition); font-size: 13px;
+}
+.ch-saved-chip:hover { border-color: var(--ring); }
+.ch-saved-chip img { width: 28px; height: 28px; border-radius: 50%; }
+.ch-saved-chip .ch-saved-remove {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 14px; padding: 0 2px; line-height: 1;
+}
+.ch-saved-chip .ch-saved-remove:hover { color: var(--red); }
+
+/* Channel Detail Modal */
+.ch-detail-header {
+    display: flex; align-items: center; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border);
+}
+.ch-detail-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
+.ch-detail-info { flex: 1; }
+.ch-detail-name { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+.ch-detail-handle { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
+.ch-detail-stats { display: flex; gap: 20px; font-size: 13px; }
+.ch-detail-stats span { color: var(--text-secondary); }
+.ch-detail-stats strong { color: var(--text-primary); font-weight: 600; }
+.ch-detail-desc {
+    font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-top: 10px;
+    white-space: pre-line;
+}
+.ch-detail-bookmark {
+    background: none; border: none; font-size: 22px; cursor: pointer;
+    color: var(--text-muted); padding: 8px;
+}
+.ch-detail-bookmark:hover, .ch-detail-bookmark.active { color: var(--accent); }
+.ch-detail-sort {
+    display: flex; gap: 4px; padding: 10px 20px; border-bottom: 1px solid var(--border);
+}
+.ch-sort-btn {
+    padding: 4px 12px; border-radius: var(--radius); border: 1px solid var(--border);
+    background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer;
+}
+.ch-sort-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.ch-detail-videos { padding: 12px 20px; }
+.ch-video-item {
+    display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.ch-video-item:last-child { border-bottom: none; }
+.ch-video-thumb {
+    width: 160px; height: 90px; border-radius: 6px; object-fit: cover; flex-shrink: 0;
+    background: var(--bg-hover);
+}
+.ch-video-info { flex: 1; min-width: 0; }
+.ch-video-title {
+    font-size: 13px; font-weight: 600; margin-bottom: 4px; line-height: 1.4;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.channel-card-stats {
-    display: flex; gap: 16px; font-size: 12px; margin-bottom: 14px; width: 100%;
-    justify-content: center;
+.ch-video-title a { color: var(--text-primary); text-decoration: none; }
+.ch-video-title a:hover { color: var(--accent); }
+.ch-video-meta {
+    display: flex; gap: 12px; font-size: 11px; color: var(--text-muted);
 }
-.channel-card-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.channel-card-stat-value { font-weight: 700; font-size: 14px; color: var(--text-primary); }
-.channel-card-stat-label { font-size: 10px; color: var(--text-muted); }
-.channel-card-actions {
-    display: flex; gap: 6px; width: 100%; margin-top: auto;
+
+/* Channel Compare Table */
+.ch-compare-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
 }
-.channel-card-actions .btn { flex: 1; justify-content: center; font-size: 12px; padding: 6px 8px; }
+.ch-compare-table th, .ch-compare-table td {
+    padding: 10px 14px; text-align: center; border-bottom: 1px solid var(--border);
+}
+.ch-compare-table th { font-weight: 600; color: var(--text-secondary); font-size: 12px; }
+.ch-compare-table td { color: var(--text-primary); }
+.ch-compare-table .ch-compare-label {
+    text-align: left; font-weight: 500; color: var(--text-secondary); width: 120px;
+}
+.ch-compare-avatar { width: 40px; height: 40px; border-radius: 50%; }
+.ch-compare-best { color: var(--accent); font-weight: 700; }
 
 /* ===== References (레퍼런스) ===== */
 .ref-header {
