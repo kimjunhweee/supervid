@@ -1139,7 +1139,7 @@ body {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .channel-card-meta {
-    font-size: 12px; color: var(--text-muted); line-height: 1.4;
+    font-size: 13px; font-weight: 500; color: var(--text-secondary); line-height: 1.4;
 }
 .ch-result-sort {
     display: flex; gap: 4px; margin-bottom: 12px;
@@ -1152,33 +1152,15 @@ body {
 .channel-card .ch-bookmark-btn:hover { color: var(--accent); }
 .channel-card .ch-bookmark-btn.active { color: var(--accent); }
 
-/* Saved Channels */
-.ch-saved-section { margin-bottom: 20px; }
-.ch-saved-header {
-    display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
-}
-.ch-saved-header h4 { font-size: 14px; font-weight: 600; }
-.ch-saved-list {
-    display: flex; gap: 10px; flex-wrap: wrap;
-}
-.ch-saved-chip {
-    display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: var(--radius);
-    background: var(--bg-card); border: 1px solid var(--border); cursor: pointer;
-    transition: all var(--transition); font-size: 13px;
-}
-.ch-saved-chip:hover { border-color: var(--ring); }
-.ch-saved-chip img { width: 28px; height: 28px; border-radius: 50%; }
-.ch-saved-chip .ch-saved-remove {
-    background: none; border: none; color: var(--text-muted); cursor: pointer;
-    font-size: 14px; padding: 0 2px; line-height: 1;
-}
-.ch-saved-chip .ch-saved-remove:hover { color: var(--red); }
 
 /* Channel Detail Modal */
 .ch-detail-header {
-    display: flex; align-items: center; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border);
+    padding: 20px; border-bottom: 1px solid var(--border);
 }
-.ch-detail-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
+.ch-detail-top {
+    display: flex; align-items: center; gap: 16px;
+}
+.ch-detail-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .ch-detail-info { flex: 1; }
 .ch-detail-name { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
 .ch-detail-handle { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
@@ -1186,8 +1168,8 @@ body {
 .ch-detail-stats span { color: var(--text-secondary); }
 .ch-detail-stats strong { color: var(--text-primary); font-weight: 600; }
 .ch-detail-desc {
-    font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-top: 10px;
-    white-space: pre-line;
+    font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-top: 14px;
+    white-space: pre-line; max-height: 120px; overflow-y: auto;
 }
 .ch-detail-bookmark {
     background: none; border: none; font-size: 22px; cursor: pointer;
@@ -1238,6 +1220,41 @@ body {
 .ch-compare-best { color: var(--accent); font-weight: 700; }
 
 /* ===== References (레퍼런스) ===== */
+.ref-subtabs {
+    display: flex; gap: 0; margin-bottom: 20px; border-bottom: 1px solid var(--border);
+}
+.ref-subtab {
+    padding: 10px 20px; font-size: 14px; font-weight: 500; color: var(--text-muted);
+    background: none; border: none; border-bottom: 2px solid transparent;
+    cursor: pointer; transition: all var(--transition);
+}
+.ref-subtab:hover { color: var(--text-primary); }
+.ref-subtab.active { color: var(--text-primary); border-bottom-color: var(--accent); }
+.ref-subtab-panel { display: none; }
+.ref-subtab-panel.active { display: block; }
+
+.ch-saved-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.ch-saved-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; display: flex; align-items: center; gap: 14px;
+    cursor: pointer; position: relative; transition: all var(--transition);
+}
+.ch-saved-card:hover { border-color: var(--ring); background: var(--bg-hover); }
+.ch-saved-card-thumb { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.ch-saved-card-body { flex: 1; min-width: 0; }
+.ch-saved-card-name {
+    font-size: 14px; font-weight: 600; margin-bottom: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ch-saved-card-meta { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+.ch-saved-card-remove {
+    position: absolute; top: 8px; right: 8px; background: none; border: none;
+    color: var(--text-muted); cursor: pointer; font-size: 16px; padding: 4px; line-height: 1;
+}
+.ch-saved-card-remove:hover { color: var(--red); }
+
 .ref-header {
     display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
 }

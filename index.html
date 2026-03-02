@@ -547,13 +547,6 @@
                 </div>
                 <span class="discover-result-info" id="channelResultInfo"></span>
             </div>
-            <div class="ch-saved-section" id="savedChannelsSection" style="display:none">
-                <div class="ch-saved-header">
-                    <h4>저장된 채널</h4>
-                    <button class="btn btn-primary btn-sm" id="channelCompareBtn" style="display:none">비교하기</button>
-                </div>
-                <div class="ch-saved-list" id="savedChannelsList"></div>
-            </div>
             <div class="ch-result-sort" id="channelSortBar" style="display:none"></div>
             <div class="channel-grid" id="channelGrid">
                 <div class="discover-empty">
@@ -716,19 +709,34 @@
 
         <!-- References Tab -->
         <section class="tab-content" id="tab-references">
-            <div class="ref-header">
-                <span class="ref-count" id="refCount">0개의 레퍼런스</span>
-                <button class="btn btn-secondary btn-sm" id="refClearAllBtn" style="display:none" data-i18n="ref.clearAll">전체 삭제</button>
+            <div class="ref-subtabs">
+                <button class="ref-subtab active" data-subtab="content">콘텐츠</button>
+                <button class="ref-subtab" data-subtab="channels">채널</button>
             </div>
-            <div class="ref-folder-bar" id="refFolderBar">
-                <!-- JS에서 동적 렌더링: [전체] [미분류] [폴더1] ... [+ 새 폴더] -->
-            </div>
-            <div class="ref-grid" id="refGrid">
-                <div class="discover-empty" id="refEmpty">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-                    <p data-i18n="ref.emptyTitle">저장된 레퍼런스가 없습니다</p>
-                    <p style="font-size:12px;color:var(--text-muted);margin-top:4px" data-i18n="ref.emptyDesc">콘텐츠 탐색에서 영상을 검색하고 레퍼런스로 저장해보세요</p>
+
+            <!-- 콘텐츠 레퍼런스 -->
+            <div class="ref-subtab-panel active" id="refPanelContent">
+                <div class="ref-header">
+                    <span class="ref-count" id="refCount">0개의 레퍼런스</span>
+                    <button class="btn btn-secondary btn-sm" id="refClearAllBtn" style="display:none" data-i18n="ref.clearAll">전체 삭제</button>
                 </div>
+                <div class="ref-folder-bar" id="refFolderBar"></div>
+                <div class="ref-grid" id="refGrid">
+                    <div class="discover-empty" id="refEmpty">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                        <p data-i18n="ref.emptyTitle">저장된 레퍼런스가 없습니다</p>
+                        <p style="font-size:12px;color:var(--text-muted);margin-top:4px" data-i18n="ref.emptyDesc">콘텐츠 탐색에서 영상을 검색하고 레퍼런스로 저장해보세요</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 저장된 채널 -->
+            <div class="ref-subtab-panel" id="refPanelChannels">
+                <div class="ref-header">
+                    <span class="ref-count" id="savedChannelCount">0개의 채널</span>
+                    <button class="btn btn-primary btn-sm" id="channelCompareBtn" style="display:none">비교하기</button>
+                </div>
+                <div class="ch-saved-grid" id="savedChannelsList"></div>
             </div>
         </section>
 

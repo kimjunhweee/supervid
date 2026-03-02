@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { renderDashboard, renderChart } from './dashboard.js';
 import { renderKanban } from './kanban.js';
 import { renderReferences } from './references.js';
+import { renderSavedChannels } from './channels.js';
 import { loadTrendingVideos } from './ideas.js';
 import { updateUploadGoal, updateLastUploadBanner } from './youtube.js';
 import { renderAll } from '../app.js';
@@ -73,7 +74,7 @@ export function switchTab(tab) {
     }
     if (tab === 'dashboard') renderDashboard();
     if (tab === 'kanban') renderKanban();
-    if (tab === 'references') renderReferences();
+    if (tab === 'references') { renderReferences(); renderSavedChannels(); }
     if (tab === 'ideas') loadTrendingVideos();
 }
 

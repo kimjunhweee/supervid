@@ -43,8 +43,15 @@ export function setupChannelSearch() {
     // Compare button
     document.getElementById('channelCompareBtn').addEventListener('click', openChannelCompare);
 
-    // Render saved channels on load
-    renderSavedChannels();
+    // Reference subtabs
+    document.querySelectorAll('.ref-subtab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.ref-subtab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.ref-subtab-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.subtab === 'channels' ? 'refPanelChannels' : 'refPanelContent').classList.add('active');
+        });
+    });
 }
 
 function submitChannelSearch() {
@@ -149,7 +156,7 @@ function renderChannelResults(channels) {
             <img class="channel-card-thumb" src="${ch.thumbnail}" alt="${escapeHtml(ch.title)}">
             <div class="channel-card-body">
                 <div class="channel-card-name">${escapeHtml(ch.title)}</div>
-                <div class="channel-card-meta">${formatNumber(ch.subscriberCount)} ${t('channel.subscribers')} · ${formatNumber(ch.videoCount)} ${t('channel.videos')} · ${formatNumber(ch.viewCount)} ${t('channel.totalViews')}</div>
+                <div class="channel-card-meta">${formatNumber(ch.subscriberCount)} ${t('channel.subscribers')}</div>
             </div>
         </div>`;
     }).join('');
@@ -204,37 +211,44 @@ function toggleChannelBookmark(btn) {
 }
 
 export function renderSavedChannels() {
-    const section = document.getElementById('savedChannelsSection');
     const list = document.getElementById('savedChannelsList');
+    const countEl = document.getElementById('savedChannelCount');
     const compareBtn = document.getElementById('channelCompareBtn');
 
+    countEl.textContent = `${state.savedChannels.length}개의 채널`;
+    compareBtn.style.display = state.savedChannels.length >= 2 ? '' : 'none';
+
     if (!state.savedChannels.length) {
-        section.style.display = 'none';
+        list.innerHTML = `
+            <div class="discover-empty" style="grid-column:1/-1">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <p>저장된 채널이 없습니다</p>
+                <p style="font-size:12px;color:var(--text-muted);margin-top:4px">채널 탐색에서 ☆ 버튼으로 채널을 저장해보세요</p>
+            </div>`;
         return;
     }
 
-    section.style.display = '';
-    compareBtn.style.display = state.savedChannels.length >= 2 ? '' : 'none';
-
     list.innerHTML = state.savedChannels.map(ch => `
-        <div class="ch-saved-chip" data-id="${ch.id}">
-            <img src="${ch.thumbnail}" alt="">
-            <span>${escapeHtml(ch.title)}</span>
-            <span style="color:var(--text-muted);font-size:11px">${formatNumber(ch.subscriberCount)}</span>
-            <button class="ch-saved-remove" data-id="${ch.id}" title="삭제">&times;</button>
+        <div class="ch-saved-card" data-id="${ch.id}">
+            <img class="ch-saved-card-thumb" src="${ch.thumbnail}" alt="">
+            <div class="ch-saved-card-body">
+                <div class="ch-saved-card-name">${escapeHtml(ch.title)}</div>
+                <div class="ch-saved-card-meta">${formatNumber(ch.subscriberCount)} 구독자 · ${formatNumber(ch.videoCount)} 영상 · ${formatNumber(ch.viewCount)} 조회수</div>
+            </div>
+            <button class="ch-saved-card-remove" data-id="${ch.id}" title="삭제">&times;</button>
         </div>
     `).join('');
 
-    // Chip click → detail
-    list.querySelectorAll('.ch-saved-chip').forEach(chip => {
-        chip.addEventListener('click', e => {
-            if (e.target.closest('.ch-saved-remove')) return;
-            openChannelDetail(chip.dataset.id);
+    // Card click → detail
+    list.querySelectorAll('.ch-saved-card').forEach(card => {
+        card.addEventListener('click', e => {
+            if (e.target.closest('.ch-saved-card-remove')) return;
+            openChannelDetail(card.dataset.id);
         });
     });
 
     // Remove button
-    list.querySelectorAll('.ch-saved-remove').forEach(btn => {
+    list.querySelectorAll('.ch-saved-card-remove').forEach(btn => {
         btn.addEventListener('click', e => {
             e.stopPropagation();
             const idx = state.savedChannels.findIndex(ch => ch.id === btn.dataset.id);
@@ -242,7 +256,6 @@ export function renderSavedChannels() {
                 state.savedChannels.splice(idx, 1);
                 saveSavedChannels();
                 renderSavedChannels();
-                // Update bookmark buttons in grid if visible
                 const gridBtn = document.querySelector(`.ch-bookmark-btn[data-id="${btn.dataset.id}"]`);
                 if (gridBtn) { gridBtn.classList.remove('active'); gridBtn.textContent = '☆'; }
                 toast('채널 저장 해제');
@@ -285,21 +298,23 @@ async function openChannelDetail(channelId) {
         const desc = _channelDescCache[channelId] || '';
 
         headerEl.innerHTML = `
-            <img class="ch-detail-avatar" src="${ch.thumbnail}" alt="">
-            <div class="ch-detail-info">
-                <div class="ch-detail-name">${escapeHtml(ch.title)}</div>
-                <div class="ch-detail-handle">${escapeHtml(ch.customUrl || '')}</div>
-                <div class="ch-detail-stats">
-                    <span>구독자 <strong>${formatNumber(ch.subscriberCount)}</strong></span>
-                    <span>영상 <strong>${formatNumber(ch.videoCount)}</strong></span>
-                    <span>총 조회수 <strong>${formatNumber(ch.viewCount)}</strong></span>
+            <div class="ch-detail-top">
+                <img class="ch-detail-avatar" src="${ch.thumbnail}" alt="">
+                <div class="ch-detail-info">
+                    <div class="ch-detail-name">${escapeHtml(ch.title)}</div>
+                    <div class="ch-detail-handle">${escapeHtml(ch.customUrl || '')}</div>
+                    <div class="ch-detail-stats">
+                        <span>구독자 <strong>${formatNumber(ch.subscriberCount)}</strong></span>
+                        <span>영상 <strong>${formatNumber(ch.videoCount)}</strong></span>
+                        <span>총 조회수 <strong>${formatNumber(ch.viewCount)}</strong></span>
+                    </div>
                 </div>
-                ${desc ? `<div class="ch-detail-desc">${escapeHtml(desc)}</div>` : ''}
-            </div>
-            <button class="ch-detail-bookmark ${saved ? 'active' : ''}" id="detailBookmarkBtn"
+                <button class="ch-detail-bookmark ${saved ? 'active' : ''}" id="detailBookmarkBtn"
                 data-id="${ch.id}" data-title="${escapeHtml(ch.title)}" data-thumb="${ch.thumbnail}"
                 data-handle="${escapeHtml(ch.customUrl || '')}" data-subs="${ch.subscriberCount}"
                 data-views="${ch.viewCount}" data-vids="${ch.videoCount}">${saved ? '★' : '☆'}</button>
+            </div>
+            ${desc ? `<div class="ch-detail-desc">${escapeHtml(desc)}</div>` : ''}
         `;
 
         document.getElementById('detailBookmarkBtn').addEventListener('click', function () {
