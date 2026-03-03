@@ -282,7 +282,7 @@ async function openChannelDetail(channelId) {
 
     try {
         const [channelRes, videosRes] = await Promise.all([
-            fetch(`/api/youtube/channel?channelId=${channelId}`),
+            fetch(`/api/youtube/channel?channelId=${channelId}&refresh=true`),
             fetch(`/api/youtube/videos?channelId=${channelId}`)
         ]);
 
@@ -297,23 +297,40 @@ async function openChannelDetail(channelId) {
 
         const desc = _channelDescCache[channelId] || '';
 
+        // 평균 조회수/좋아요 계산
+        const avgViews = _detailVideos.length > 0
+            ? Math.round(_detailVideos.reduce((s, v) => s + (v.viewCount || 0), 0) / _detailVideos.length) : 0;
+        const avgLikes = _detailVideos.length > 0
+            ? Math.round(_detailVideos.reduce((s, v) => s + (v.likeCount || 0), 0) / _detailVideos.length) : 0;
+
+        // 태그 파싱
+        const tags = ch.keywords ? ch.keywords.match(/"[^"]+"|[^\s"]+/g)?.map(t => t.replace(/"/g, '')) || [] : [];
+
+        const statItems = [
+            { label: '구독자', value: formatNumber(ch.subscriberCount) },
+            { label: '영상', value: formatNumber(ch.videoCount) },
+            { label: '총 조회수', value: formatNumber(ch.viewCount) },
+            { label: '평균 조회수', value: formatNumber(avgViews) },
+            { label: '평균 좋아요', value: formatNumber(avgLikes) },
+            { label: '국가', value: ch.country || '-' },
+        ];
+
         headerEl.innerHTML = `
             <div class="ch-detail-top">
                 <img class="ch-detail-avatar" src="${ch.thumbnail}" alt="">
                 <div class="ch-detail-info">
                     <div class="ch-detail-name">${escapeHtml(ch.title)}</div>
                     <div class="ch-detail-handle">${escapeHtml(ch.customUrl || '')}</div>
-                    <div class="ch-detail-stats">
-                        <span>구독자 <strong>${formatNumber(ch.subscriberCount)}</strong></span>
-                        <span>영상 <strong>${formatNumber(ch.videoCount)}</strong></span>
-                        <span>총 조회수 <strong>${formatNumber(ch.viewCount)}</strong></span>
-                    </div>
                 </div>
                 <button class="ch-detail-bookmark ${saved ? 'active' : ''}" id="detailBookmarkBtn"
                 data-id="${ch.id}" data-title="${escapeHtml(ch.title)}" data-thumb="${ch.thumbnail}"
                 data-handle="${escapeHtml(ch.customUrl || '')}" data-subs="${ch.subscriberCount}"
                 data-views="${ch.viewCount}" data-vids="${ch.videoCount}">${saved ? '★' : '☆'}</button>
             </div>
+            <div class="ch-detail-stat-grid">
+                ${statItems.map(s => `<div class="ch-detail-stat-cell"><span class="ch-detail-stat-label">${s.label}</span><span class="ch-detail-stat-value">${s.value}</span></div>`).join('')}
+            </div>
+            ${tags.length > 0 ? `<div class="ch-detail-tags">${tags.map(t => `<span class="ch-detail-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
             ${desc ? `<div class="ch-detail-desc">${escapeHtml(desc)}</div>` : ''}
         `;
 

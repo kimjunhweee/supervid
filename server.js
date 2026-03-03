@@ -294,7 +294,7 @@ app.get('/api/youtube/channel', requireAuth, async (req, res) => {
 
     try {
         const response = await fetch(
-            `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${encodeURIComponent(channelId)}&key=${API_KEY}`
+            `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet,brandingSettings&id=${encodeURIComponent(channelId)}&key=${API_KEY}`
         );
         trackUnits('채널 조회', 1);
         const data = await response.json();
@@ -306,9 +306,12 @@ app.get('/api/youtube/channel', requireAuth, async (req, res) => {
         const result = {
             title: channel.snippet.title,
             thumbnail: channel.snippet.thumbnails.default.url,
+            customUrl: channel.snippet.customUrl || '',
+            country: channel.snippet.country || '',
             subscriberCount: parseInt(channel.statistics.subscriberCount),
             viewCount: parseInt(channel.statistics.viewCount),
-            videoCount: parseInt(channel.statistics.videoCount)
+            videoCount: parseInt(channel.statistics.videoCount),
+            keywords: channel.brandingSettings?.channel?.keywords || ''
         };
         await setCache(cacheKey, result, CH_AVG_CACHE_TTL); // 2시간
         res.json(result);
