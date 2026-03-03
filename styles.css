@@ -1178,8 +1178,15 @@ body {
 .ch-detail-stat-grid > :nth-last-child(-n+2):nth-child(n+4) { border-bottom: none; }
 .ch-detail-stat-label { font-size: 11px; color: var(--text-muted); }
 .ch-detail-stat-value { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.ch-detail-tags-wrap {
+    margin-top: 14px; border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 14px;
+}
+.ch-detail-tags-label {
+    font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 8px;
+}
 .ch-detail-tags {
-    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+    display: flex; flex-wrap: wrap; gap: 6px;
 }
 .ch-detail-tag {
     font-size: 11px; padding: 3px 10px; border-radius: 999px;

@@ -330,7 +330,7 @@ async function openChannelDetail(channelId) {
             <div class="ch-detail-stat-grid">
                 ${statItems.map(s => `<div class="ch-detail-stat-cell"><span class="ch-detail-stat-label">${s.label}</span><span class="ch-detail-stat-value">${s.value}</span></div>`).join('')}
             </div>
-            ${tags.length > 0 ? `<div class="ch-detail-tags">${tags.map(t => `<span class="ch-detail-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+            ${tags.length > 0 ? `<div class="ch-detail-tags-wrap"><span class="ch-detail-tags-label">채널 태그</span><div class="ch-detail-tags">${tags.map(t => `<span class="ch-detail-tag">${escapeHtml(t)}</span>`).join('')}</div></div>` : ''}
             ${desc ? `<div class="ch-detail-desc">${escapeHtml(desc)}</div>` : ''}
         `;
 
