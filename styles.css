@@ -1165,17 +1165,12 @@ body {
 .ch-detail-name { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
 .ch-detail-handle { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
 .ch-detail-stat-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
-    margin-top: 14px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px;
 }
 .ch-detail-stat-cell {
     display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding: 12px 8px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    padding: 14px 8px; border: 1px solid var(--border); border-radius: var(--radius);
 }
-.ch-detail-stat-cell:nth-child(3n) { border-right: none; }
-.ch-detail-stat-cell:nth-last-child(-n+3) { border-bottom: none; }
-/* 5개일 때 마지막 줄 2개만 → 하단 border 제거 */
-.ch-detail-stat-grid > :nth-last-child(-n+2):nth-child(n+4) { border-bottom: none; }
 .ch-detail-stat-label { font-size: 11px; color: var(--text-muted); }
 .ch-detail-stat-value { font-size: 15px; font-weight: 700; color: var(--text-primary); }
 .ch-detail-tags-wrap {
