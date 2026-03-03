@@ -1152,6 +1152,19 @@ body {
 .channel-card .ch-bookmark-btn:hover { color: var(--accent); }
 .channel-card .ch-bookmark-btn.active { color: var(--accent); }
 
+.ch-section-divider {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 12px;
+    margin: 8px 0 4px;
+}
+.ch-section-divider::before, .ch-section-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.ch-section-label {
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    background: var(--bg-hover); padding: 2px 10px; border-radius: 999px;
+    white-space: nowrap; letter-spacing: 0.02em;
+}
+
 
 /* Channel Detail Modal */
 .ch-detail-header {

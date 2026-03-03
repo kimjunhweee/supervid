@@ -7,6 +7,12 @@ let _detailVideos = [];
 let _detailChannel = null;
 let _channelDescCache = {};
 let _lastSearchResults = [];
+let _discoveredChannels = [];
+let _discoveryDone = false;
+let _nextPageToken = null;
+let _lastQuery = '';
+let _lastSubMin = 0;
+let _lastSubMax = 0;
 
 export function setupChannelSearch() {
     document.getElementById('channelSearchSubmitBtn').addEventListener('click', submitChannelSearch);
@@ -62,37 +68,107 @@ function submitChannelSearch() {
     performChannelSearch(query, subMin, subMax);
 }
 
-async function performChannelSearch(query, subMin, subMax) {
+async function performChannelSearch(query, subMin, subMax, pageToken) {
     if (checkGuestBlock()) return;
     const grid = document.getElementById('channelGrid');
     const infoEl = document.getElementById('channelResultInfo');
     const hasSubFilter = subMin > 0 || subMax > 0;
-    const fetchCount = 50;
+    const isLoadMore = !!pageToken;
 
-    grid.innerHTML = hasSubFilter
-        ? `<div class="discover-loading">${t('channel.filterLoading')}</div>`
-        : `<div class="discover-loading">${t('channel.loading')}</div>`;
+    if (!isLoadMore) {
+        _lastSearchResults = [];
+        _discoveredChannels = [];
+        _discoveryDone = false;
+        _nextPageToken = null;
+        _lastQuery = query;
+        _lastSubMin = subMin;
+        _lastSubMax = subMax;
+        grid.innerHTML = hasSubFilter
+            ? `<div class="discover-loading">${t('channel.filterLoading')}</div>`
+            : `<div class="discover-loading">${t('channel.loading')}</div>`;
+    }
 
     try {
-        const res = await fetch(`/api/youtube/search-channels?q=${encodeURIComponent(query)}&maxResults=${fetchCount}`);
+        const tokenParam = pageToken ? `&pageToken=${pageToken}` : '';
+        const res = await fetch(`/api/youtube/search-channels?q=${encodeURIComponent(query)}&maxResults=50${tokenParam}`);
         if (!res.ok) {
             const err = await res.json();
             throw new Error(err.error || t('misc.searchFail'));
         }
-        let channels = await res.json();
-        const totalFetched = channels.length;
+        const data = await res.json();
+        let channels = data.channels || data;
+        _nextPageToken = data.nextPageToken || null;
 
         if (subMin > 0) channels = channels.filter(ch => ch.subscriberCount >= subMin);
         if (subMax > 0) channels = channels.filter(ch => ch.subscriberCount <= subMax);
 
+        _lastSearchResults = [..._lastSearchResults, ...channels];
+
         infoEl.textContent = hasSubFilter
-            ? t('discover.fetchMatch', { total: totalFetched, match: channels.length })
-            : t('discover.resultCount', { n: channels.length });
-        _lastSearchResults = channels;
-        showResultSort('relevance');
-        renderChannelResults(channels);
+            ? t('discover.fetchMatch', { total: _lastSearchResults.length, match: _lastSearchResults.length })
+            : t('discover.resultCount', { n: _lastSearchResults.length });
+
+        if (!isLoadMore) {
+            showResultSort('relevance');
+            // Fire-and-forget discovery
+            fetchDiscoveredChannels(query, subMin, subMax);
+        } else {
+            // 더보기 후 발굴 결과에서 중복 자동 제거
+            const nameIds = new Set(_lastSearchResults.map(ch => ch.id));
+            _discoveredChannels = _discoveredChannels.filter(ch => !nameIds.has(ch.id));
+        }
+        renderChannelGrid(_lastSearchResults, _discoveredChannels);
+        renderLoadMoreBtn();
     } catch (err) {
-        grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</p></div>`;
+        if (!isLoadMore) {
+            grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</p></div>`;
+        }
+    }
+}
+
+async function fetchDiscoveredChannels(query, subMin, subMax) {
+    const querySnapshot = query;
+    try {
+        const excludeIds = _lastSearchResults.map(ch => ch.id).join(',');
+        const res = await fetch(`/api/youtube/discover-channels?q=${encodeURIComponent(query)}&excludeIds=${encodeURIComponent(excludeIds)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // Stale check
+        if (_lastQuery !== querySnapshot) return;
+
+        let channels = data.channels || [];
+        // 구독자 필터 적용
+        if (subMin > 0) channels = channels.filter(ch => ch.subscriberCount >= subMin);
+        if (subMax > 0) channels = channels.filter(ch => ch.subscriberCount <= subMax);
+        // 중복 제거
+        const nameIds = new Set(_lastSearchResults.map(ch => ch.id));
+        channels = channels.filter(ch => !nameIds.has(ch.id));
+
+        _discoveredChannels = channels;
+        _discoveryDone = true;
+        renderChannelGrid(_lastSearchResults, _discoveredChannels);
+    } catch {
+        _discoveryDone = true;
+    }
+}
+
+function renderLoadMoreBtn() {
+    let wrap = document.getElementById('channelLoadMoreWrap');
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'channelLoadMoreWrap';
+        wrap.className = 'discover-more-wrap';
+        document.getElementById('channelGrid').after(wrap);
+    }
+    if (_nextPageToken) {
+        wrap.innerHTML = `<button class="btn btn-secondary" id="channelLoadMoreBtn">더보기</button>`;
+        document.getElementById('channelLoadMoreBtn').addEventListener('click', () => {
+            wrap.innerHTML = `<div class="discover-loading">로딩 중...</div>`;
+            performChannelSearch(_lastQuery, _lastSubMin, _lastSubMax, _nextPageToken);
+        });
+    } else {
+        wrap.innerHTML = '';
     }
 }
 
@@ -119,7 +195,7 @@ function showResultSort(activeSort) {
             sortBar.querySelectorAll('.ch-sort-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             const sorted = sortChannels(_lastSearchResults, btn.dataset.sort);
-            renderChannelResults(sorted);
+            renderChannelGrid(sorted, _discoveredChannels);
         });
     });
 }
@@ -139,27 +215,39 @@ function sortChannels(channels, sortKey) {
     }
 }
 
-function renderChannelResults(channels) {
+function channelCardHtml(ch) {
+    const saved = isChannelSaved(ch.id);
+    return `
+    <div class="channel-card" data-channel-id="${ch.id}" data-desc="${escapeHtml(ch.description || '')}">
+        <button class="ch-bookmark-btn ${saved ? 'active' : ''}" data-id="${ch.id}" data-title="${escapeHtml(ch.title)}" data-thumb="${ch.thumbnail}" data-handle="${escapeHtml(ch.customUrl || '')}" data-subs="${ch.subscriberCount}" data-views="${ch.viewCount}" data-vids="${ch.videoCount}" title="저장">${saved ? '★' : '☆'}</button>
+        <img class="channel-card-thumb" src="${ch.thumbnail}" alt="${escapeHtml(ch.title)}">
+        <div class="channel-card-body">
+            <div class="channel-card-name">${escapeHtml(ch.title)}</div>
+            <div class="channel-card-meta">${formatNumber(ch.subscriberCount)} ${t('channel.subscribers')}</div>
+        </div>
+    </div>`;
+}
+
+function renderChannelGrid(nameResults, discoveredResults) {
     const grid = document.getElementById('channelGrid');
-    if (!channels || channels.length === 0) {
+    const allChannels = [...(nameResults || []), ...(discoveredResults || [])];
+
+    if (!allChannels.length) {
         grid.innerHTML = `<div class="discover-empty"><p>${t('discover.noResults')}</p></div>`;
         return;
     }
 
-    channels.forEach(ch => { if (ch.description) _channelDescCache[ch.id] = ch.description; });
+    // Cache descriptions
+    allChannels.forEach(ch => { if (ch.description) _channelDescCache[ch.id] = ch.description; });
 
-    grid.innerHTML = channels.map(ch => {
-        const saved = isChannelSaved(ch.id);
-        return `
-        <div class="channel-card" data-channel-id="${ch.id}" data-desc="${escapeHtml(ch.description || '')}">
-            <button class="ch-bookmark-btn ${saved ? 'active' : ''}" data-id="${ch.id}" data-title="${escapeHtml(ch.title)}" data-thumb="${ch.thumbnail}" data-handle="${escapeHtml(ch.customUrl || '')}" data-subs="${ch.subscriberCount}" data-views="${ch.viewCount}" data-vids="${ch.videoCount}" title="저장">${saved ? '★' : '☆'}</button>
-            <img class="channel-card-thumb" src="${ch.thumbnail}" alt="${escapeHtml(ch.title)}">
-            <div class="channel-card-body">
-                <div class="channel-card-name">${escapeHtml(ch.title)}</div>
-                <div class="channel-card-meta">${formatNumber(ch.subscriberCount)} ${t('channel.subscribers')}</div>
-            </div>
-        </div>`;
-    }).join('');
+    let html = (nameResults || []).map(ch => channelCardHtml(ch)).join('');
+
+    if (discoveredResults && discoveredResults.length > 0) {
+        html += `<div class="ch-section-divider"><span class="ch-section-label">관련 채널</span></div>`;
+        html += discoveredResults.map(ch => channelCardHtml(ch)).join('');
+    }
+
+    grid.innerHTML = html;
 
     // Card click → detail
     grid.querySelectorAll('.channel-card').forEach(card => {
@@ -176,7 +264,6 @@ function renderChannelResults(channels) {
             toggleChannelBookmark(btn);
         });
     });
-
 }
 
 // ===== Bookmark =====

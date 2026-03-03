@@ -797,22 +797,23 @@ app.get('/api/youtube/keyword-suggestions', requireAuth, async (req, res) => {
 
 // ===== 채널 검색 =====
 app.get('/api/youtube/search-channels', requireAuth, async (req, res) => {
-    const { q, maxResults = '12' } = req.query;
+    const { q, maxResults = '12', pageToken } = req.query;
     if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
 
     const perPage = Math.min(parseInt(maxResults) || 12, 50);
-    const cacheKey = `ch|${q}|${perPage}`;
+    const cacheKey = `ch|${q}|${perPage}|${pageToken || ''}`;
     const cached = await getCached(cacheKey);
     if (cached) return res.json(cached);
 
     try {
+        const tokenParam = pageToken ? `&pageToken=${pageToken}` : '';
         const searchRes = await fetch(
-            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(q)}&maxResults=${perPage}&key=${API_KEY}`
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(q)}&maxResults=${perPage}${tokenParam}&key=${API_KEY}`
         );
         trackUnits('채널 검색', 100);
         const searchData = await searchRes.json();
         if (searchData.error) return res.status(400).json({ error: searchData.error.message });
-        if (!searchData.items || searchData.items.length === 0) return res.json([]);
+        if (!searchData.items || searchData.items.length === 0) return res.json({ channels: [], nextPageToken: null });
 
         const channelIds = searchData.items.map(item => item.id.channelId).join(',');
         const channelsRes = await fetch(
@@ -834,11 +835,72 @@ app.get('/api/youtube/search-channels', requireAuth, async (req, res) => {
             hiddenSubscriberCount: ch.statistics.hiddenSubscriberCount || false
         }));
 
-        await setCache(cacheKey, channels, CACHE_TTL);
-        res.json(channels);
+        const result = { channels, nextPageToken: searchData.nextPageToken || null };
+        await setCache(cacheKey, result, CACHE_TTL);
+        res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// ===== 채널 발굴 (영상 검색 기반) =====
+app.get('/api/youtube/discover-channels', requireAuth, async (req, res) => {
+    const { q, excludeIds = '' } = req.query;
+    if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
+
+    const cacheKey = `discover-ch|${q}`;
+    let channels;
+
+    const cached = await getCached(cacheKey);
+    if (cached) {
+        channels = cached;
+    } else {
+        try {
+            // 1) 영상 검색으로 관련 채널 발굴
+            const searchRes = await fetch(
+                `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(q)}&maxResults=25&key=${API_KEY}`
+            );
+            trackUnits('발굴 영상검색', 100);
+            const searchData = await searchRes.json();
+            if (searchData.error) return res.status(400).json({ error: searchData.error.message });
+            if (!searchData.items || searchData.items.length === 0) return res.json({ channels: [] });
+
+            // 2) 고유 channelId 추출
+            const uniqueIds = [...new Set(searchData.items.map(item => item.snippet.channelId))];
+
+            // 3) 채널 상세 조회
+            const channelsRes = await fetch(
+                `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet,brandingSettings&id=${uniqueIds.join(',')}&key=${API_KEY}`
+            );
+            trackUnits('발굴 채널조회', 1);
+            const channelsData = await channelsRes.json();
+
+            channels = (channelsData.items || []).map(ch => ({
+                id: ch.id,
+                title: ch.snippet.title,
+                description: ch.snippet.description,
+                thumbnail: ch.snippet.thumbnails.medium?.url || ch.snippet.thumbnails.default?.url,
+                customUrl: ch.snippet.customUrl || '',
+                publishedAt: ch.snippet.publishedAt,
+                subscriberCount: parseInt(ch.statistics.subscriberCount || 0),
+                viewCount: parseInt(ch.statistics.viewCount || 0),
+                videoCount: parseInt(ch.statistics.videoCount || 0),
+                hiddenSubscriberCount: ch.statistics.hiddenSubscriberCount || false
+            }));
+
+            await setCache(cacheKey, channels, CACHE_TTL);
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+
+    // excludeIds 필터링은 캐시 외부에서 적용
+    if (excludeIds) {
+        const excludeSet = new Set(excludeIds.split(','));
+        channels = channels.filter(ch => !excludeSet.has(ch.id));
+    }
+
+    res.json({ channels });
 });
 
 // ===== 아웃라이어 찾기 =====
