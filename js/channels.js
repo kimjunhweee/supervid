@@ -1,6 +1,6 @@
 // ===== Channel Search (채널 탐색) =====
 import { state, saveSavedChannels } from './state.js';
-import { escapeHtml, formatNumber, toast, formatRelativeTime } from './utils.js';
+import { escapeHtml, formatNumber, toast, formatRelativeTime, parseDurationToSeconds } from './utils.js';
 import { checkGuestBlock } from './auth.js';
 
 let _detailVideos = [];
@@ -474,8 +474,15 @@ function renderDetailVideos(sortBy) {
         return;
     }
 
-    const sorted = [..._detailVideos].sort((a, b) => {
-        if (sortBy === 'views') return (b.viewCount || 0) - (a.viewCount || 0);
+    let filtered = [..._detailVideos];
+    if (sortBy === 'shorts-views') {
+        filtered = filtered.filter(v => v.duration && parseDurationToSeconds(v.duration) <= 70);
+    } else if (sortBy === 'long-views') {
+        filtered = filtered.filter(v => !v.duration || parseDurationToSeconds(v.duration) > 70);
+    }
+
+    const sorted = filtered.sort((a, b) => {
+        if (sortBy === 'views' || sortBy === 'shorts-views' || sortBy === 'long-views') return (b.viewCount || 0) - (a.viewCount || 0);
         if (sortBy === 'likes') return (b.likeCount || 0) - (a.likeCount || 0);
         return new Date(b.publishedAt) - new Date(a.publishedAt);
     });
