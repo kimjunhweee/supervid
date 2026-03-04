@@ -66,6 +66,61 @@ async function setCache(key, value, ttlMs = CACHE_TTL) {
     } catch { /* ignore */ }
 }
 
+// ===== 영속 저장 헬퍼 =====
+function parseDuration(iso) {
+    if (!iso) return { duration: '', duration_seconds: 0 };
+    const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+    if (!m) return { duration: iso, duration_seconds: 0 };
+    const seconds = (parseInt(m[1] || '0') * 3600) + (parseInt(m[2] || '0') * 60) + parseInt(m[3] || '0');
+    return { duration: iso, duration_seconds: seconds };
+}
+
+function persistVideos(videos) {
+    if (!supabase || !videos || videos.length === 0) return;
+    const now = new Date().toISOString();
+    const rows = videos.map(v => {
+        const row = { id: v.id, crawled_at: now };
+        if (v.title) row.title = v.title;
+        if (v.channelId) row.channel_id = v.channelId;
+        if (v.channelTitle) row.channel_title = v.channelTitle;
+        if (v.subscriberCount != null) row.subscriber_count = v.subscriberCount;
+        if (v.viewCount != null) row.view_count = v.viewCount;
+        if (v.likeCount != null) row.like_count = v.likeCount;
+        if (v.commentCount != null) row.comment_count = v.commentCount;
+        if (v.publishedAt) row.published_at = v.publishedAt;
+        if (v.thumbnail) row.thumbnail = v.thumbnail;
+        if (v.duration) {
+            const { duration, duration_seconds } = parseDuration(v.duration);
+            row.duration = duration;
+            row.duration_seconds = duration_seconds;
+        }
+        if (v.viewToSubRatio != null) row.view_to_sub_ratio = v.viewToSubRatio;
+        return row;
+    });
+    supabase.from('videos').upsert(rows, { onConflict: 'id' }).then(() => {}).catch(() => {});
+}
+
+function persistChannels(channels) {
+    if (!supabase || !channels || channels.length === 0) return;
+    const now = new Date().toISOString();
+    const rows = channels.map(ch => {
+        const row = { id: ch.id, crawled_at: now };
+        if (ch.title) row.title = ch.title;
+        if (ch.description) row.description = ch.description;
+        if (ch.thumbnail) row.thumbnail = ch.thumbnail;
+        if (ch.customUrl) row.custom_url = ch.customUrl;
+        if (ch.country) row.country = ch.country;
+        if (ch.publishedAt) row.published_at = ch.publishedAt;
+        if (ch.subscriberCount != null) row.subscriber_count = ch.subscriberCount;
+        if (ch.viewCount != null) row.view_count = ch.viewCount;
+        if (ch.videoCount != null) row.video_count = ch.videoCount;
+        if (ch.hiddenSubscriberCount != null) row.hidden_subscriber_count = ch.hiddenSubscriberCount;
+        if (ch.keywords) row.keywords = ch.keywords;
+        return row;
+    });
+    supabase.from('channels').upsert(rows, { onConflict: 'id' }).then(() => {}).catch(() => {});
+}
+
 // ===== Express 앱 =====
 const app = express();
 
@@ -291,6 +346,34 @@ app.get('/api/youtube/channel', requireAuth, async (req, res) => {
     if (!req.query.refresh) {
         const cached = await getCached(cacheKey);
         if (cached) return res.json(cached);
+
+        // DB-first: channels 테이블에서 2시간 이내 데이터 조회
+        if (supabase) {
+            try {
+                const { data: dbCh } = await supabase
+                    .from('channels')
+                    .select('*')
+                    .eq('id', channelId)
+                    .single();
+                if (dbCh && dbCh.crawled_at) {
+                    const age = Date.now() - new Date(dbCh.crawled_at).getTime();
+                    if (age < CH_AVG_CACHE_TTL) {
+                        const result = {
+                            title: dbCh.title,
+                            thumbnail: dbCh.thumbnail,
+                            customUrl: dbCh.custom_url || '',
+                            country: dbCh.country || '',
+                            subscriberCount: dbCh.subscriber_count,
+                            viewCount: dbCh.view_count,
+                            videoCount: dbCh.video_count,
+                            keywords: dbCh.keywords || ''
+                        };
+                        await setCache(cacheKey, result, CH_AVG_CACHE_TTL);
+                        return res.json(result);
+                    }
+                }
+            } catch { /* DB 실패 시 API 폴백 */ }
+        }
     }
 
     try {
@@ -314,6 +397,7 @@ app.get('/api/youtube/channel', requireAuth, async (req, res) => {
             videoCount: parseInt(channel.statistics.videoCount),
             keywords: channel.brandingSettings?.channel?.keywords || ''
         };
+        persistChannels([{ id: channelId, ...result }]);
         await setCache(cacheKey, result, CH_AVG_CACHE_TTL); // 2시간
         res.json(result);
     } catch (err) {
@@ -392,6 +476,8 @@ app.get('/api/youtube/videos', requireAuth, async (req, res) => {
             id: v.id,
             title: v.snippet.title,
             thumbnail: v.snippet.thumbnails.medium.url,
+            channelId: v.snippet.channelId,
+            channelTitle: v.snippet.channelTitle,
             publishedAt: v.snippet.publishedAt,
             viewCount: parseInt(v.statistics.viewCount || 0),
             likeCount: parseInt(v.statistics.likeCount || 0),
@@ -399,6 +485,7 @@ app.get('/api/youtube/videos', requireAuth, async (req, res) => {
             duration: v.contentDetails ? v.contentDetails.duration : null
         }));
 
+        persistVideos(videos);
         await setCache(cacheKey, videos, VIDEOS_CACHE_TTL); // 1시간
         res.json(videos);
     } catch (err) {
@@ -485,6 +572,9 @@ app.get('/api/youtube/search', requireAuth, async (req, res) => {
                 viewToSubRatio
             };
         });
+
+        persistVideos(videos);
+        persistChannels(Object.entries(subMap).map(([id, subscriberCount]) => ({ id, subscriberCount })));
 
         const result = { videos, nextPageToken: pageToken || null };
         await setCache(cacheKey, result, CACHE_TTL);
@@ -623,34 +713,9 @@ app.get('/api/db/search', requireAuth, async (req, res) => {
         });
 
         // YouTube 결과를 바로 DB에 저장 (백그라운드)
-        if (supabase && !inputPageToken) {
-            const rows = videos.map(v => {
-                const rawItem = (videosData.items || []).find(i => i.id === v.id);
-                const durationIso = rawItem?.contentDetails?.duration || '';
-                const durationSeconds = (() => {
-                    const m = durationIso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-                    if (!m) return 0;
-                    return (parseInt(m[1]||'0')*3600) + (parseInt(m[2]||'0')*60) + parseInt(m[3]||'0');
-                })();
-                return {
-                    id: v.id,
-                    title: v.title,
-                    channel_id: v.channelId,
-                    channel_title: v.channelTitle,
-                    subscriber_count: v.subscriberCount,
-                    view_count: v.viewCount,
-                    like_count: v.likeCount,
-                    comment_count: v.commentCount,
-                    published_at: v.publishedAt,
-                    thumbnail: v.thumbnail,
-                    duration: durationIso,
-                    duration_seconds: durationSeconds,
-                    view_to_sub_ratio: v.viewToSubRatio,
-                    keywords: [keyword],
-                    crawled_at: new Date().toISOString(),
-                };
-            });
-            supabase.from('videos').upsert(rows, { onConflict: 'id', ignoreDuplicates: false }).then(() => {}).catch(() => {});
+        if (!inputPageToken) {
+            persistVideos(videos);
+            persistChannels(Object.entries(subMap).map(([id, subscriberCount]) => ({ id, subscriberCount })));
         }
 
         return res.json({ videos, source: 'youtube', hasMore: !!searchData.nextPageToken, nextPageToken: searchData.nextPageToken || null });
@@ -707,6 +772,8 @@ app.get('/api/youtube/trending', requireAuth, async (req, res) => {
             subscriberCount: subMap[v.snippet.channelId] || 0
         }));
 
+        persistVideos(videos);
+        persistChannels(Object.entries(subMap).map(([id, subscriberCount]) => ({ id, subscriberCount })));
         await setCache(cacheKey, videos, TRENDING_CACHE_TTL);
         res.json(videos);
     } catch (err) {
@@ -836,6 +903,7 @@ app.get('/api/youtube/search-channels', requireAuth, async (req, res) => {
             hiddenSubscriberCount: ch.statistics.hiddenSubscriberCount || false
         }));
 
+        persistChannels(channels);
         const result = { channels, nextPageToken: searchData.nextPageToken || null };
         await setCache(cacheKey, result, CACHE_TTL);
         res.json(result);
@@ -889,6 +957,7 @@ app.get('/api/youtube/discover-channels', requireAuth, async (req, res) => {
                 hiddenSubscriberCount: ch.statistics.hiddenSubscriberCount || false
             }));
 
+            persistChannels(channels);
             await setCache(cacheKey, channels, CACHE_TTL);
         } catch (err) {
             return res.status(500).json({ error: err.message });
@@ -1028,6 +1097,9 @@ app.get('/api/youtube/outliers', requireAuth, async (req, res) => {
 
         results.sort((a, b) => b.outlierScore - a.outlierScore);
         const finalResults = results.slice(0, limit);
+
+        persistVideos(finalResults);
+        persistChannels(Object.entries(channelMap).map(([id, info]) => ({ id, subscriberCount: info.subscriberCount })));
 
         const result = { videos: finalResults };
         await setCache(cacheKey, result, CACHE_TTL);
