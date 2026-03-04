@@ -105,7 +105,8 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static('.'));
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supervid-jwt-fallback-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET 환경변수가 필요합니다');
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const API_KEY = process.env.YOUTUBE_API_KEY;
