@@ -63,13 +63,13 @@ Deno.serve(async () => {
     }
 
     // 5. 기존 키워드 배열 조회 (병합용)
-    const videoIds = statsData.items.map((v: any) => v.id);
+    const videoIdList = statsData.items.map((v: any) => v.id);
     const existingKeywordsMap: Record<string, string[]> = {};
     try {
       const { data: existing } = await supabase
         .from('videos')
         .select('id, keywords')
-        .in('id', videoIds);
+        .in('id', videoIdList);
       if (existing) {
         for (const row of existing) {
           existingKeywordsMap[row.id] = row.keywords || [];
