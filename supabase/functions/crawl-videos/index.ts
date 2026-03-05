@@ -62,11 +62,27 @@ Deno.serve(async () => {
       return (parseInt(m[1] || '0') * 3600) + (parseInt(m[2] || '0') * 60) + parseInt(m[3] || '0');
     }
 
-    // 5. 데이터 가공
+    // 5. 기존 키워드 배열 조회 (병합용)
+    const videoIds = statsData.items.map((v: any) => v.id);
+    const existingKeywordsMap: Record<string, string[]> = {};
+    try {
+      const { data: existing } = await supabase
+        .from('videos')
+        .select('id, keywords')
+        .in('id', videoIds);
+      if (existing) {
+        for (const row of existing) {
+          existingKeywordsMap[row.id] = row.keywords || [];
+        }
+      }
+    } catch { /* 새 영상은 빈 배열로 시작 */ }
+
+    // 6. 데이터 가공
     const videos = statsData.items.map((v: any) => {
       const viewCount = parseInt(v.statistics.viewCount) || 0;
       const subscriberCount = channelMap[v.snippet.channelId] || 0;
       const duration = v.contentDetails?.duration || '';
+      const prev = existingKeywordsMap[v.id] || [];
       return {
         id: v.id,
         title: v.snippet.title,
@@ -81,12 +97,12 @@ Deno.serve(async () => {
         duration,
         duration_seconds: parseDuration(duration),
         view_to_sub_ratio: subscriberCount > 0 ? Math.round(viewCount / subscriberCount) : 0,
-        keywords: [keyword],
+        keywords: prev.includes(keyword) ? prev : [...prev, keyword],
         crawled_at: new Date().toISOString(),
       };
     });
 
-    // 6. Supabase에 upsert
+    // 7. Supabase에 upsert
     const { error: upsertError } = await supabase
       .from('videos')
       .upsert(videos, { onConflict: 'id', ignoreDuplicates: false });
@@ -96,7 +112,7 @@ Deno.serve(async () => {
       return new Response(JSON.stringify({ error: upsertError.message }), { status: 500 });
     }
 
-    // 7. 키워드 수집 시간 업데이트
+    // 8. 키워드 수집 시간 업데이트
     await supabase
       .from('keywords')
       .update({ last_crawled_at: new Date().toISOString(), video_count: videos.length })
