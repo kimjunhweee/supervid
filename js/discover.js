@@ -8,12 +8,26 @@ let _discoverNextPageToken = null;
 let _discoverAllVideos = [];
 let _discoverSource = null;  // 'db' | 'youtube'
 let _discoverOffset = 0;
+let _discoverViewMode = 'grid';
+let _discoverHasMore = false;
 
 export function setupDiscover() {
     initCustomDropdowns();
     document.getElementById('searchSubmitBtn').addEventListener('click', submitSearch);
     document.getElementById('searchResetBtn').addEventListener('click', resetSearchForm);
     document.getElementById('searchKeyword').addEventListener('keydown', e => { if (e.key === 'Enter') submitSearch(); });
+
+    // View toggle
+    document.querySelectorAll('.discover-view-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.dataset.view;
+            if (mode === _discoverViewMode) return;
+            _discoverViewMode = mode;
+            document.querySelectorAll('.discover-view-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            if (_discoverAllVideos.length > 0) renderDiscoverResults(_discoverAllVideos, _discoverHasMore);
+        });
+    });
 }
 
 function initCustomDropdowns() {
@@ -166,7 +180,8 @@ async function performSearch(params, loadMore) {
         const total = data.total || _discoverAllVideos.length;
         infoEl.textContent = `${t('discover.resultCount', { n: total })} · ${sourceLabel}`;
 
-        renderDiscoverResults(_discoverAllVideos, data.hasMore);
+        _discoverHasMore = data.hasMore;
+        renderDiscoverResults(_discoverAllVideos, _discoverHasMore);
     } catch (err) {
         if (!loadMore) {
             grid.innerHTML = `<div class="discover-empty"><p style="color:var(--red)">${t('misc.error', { msg: escapeHtml(err.message) })}</p></div>`;
@@ -215,40 +230,21 @@ function updateActiveFilters(params) {
 
 function renderDiscoverResults(videos, hasMore) {
     const grid = document.getElementById('discoverGrid');
+    const toggle = document.getElementById('discoverViewToggle');
     if (!videos || videos.length === 0) {
         grid.innerHTML = `<div class="discover-empty"><p>${t('discover.noResults')}</p></div>`;
+        if (toggle) toggle.style.display = 'none';
         return;
     }
+    if (toggle) toggle.style.display = 'flex';
 
-    grid.innerHTML = videos.map(v => {
-        const dateFmt = getLang() === 'en' ? { year: 'numeric', month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' };
-        const dateLocale = getLang() === 'en' ? 'en-US' : 'ko-KR';
-        const date = new Date(v.publishedAt).toLocaleDateString(dateLocale, dateFmt);
-        const ratio = v.viewToSubRatio || 0;
-        const ratioClass = ratio >= 200 ? 'hot' : ratio >= 50 ? 'good' : 'normal';
-        const ratioLabel = ratio >= 200 ? '🔥' : ratio >= 50 ? '✨' : '';
-        return `
-        <div class="discover-card">
-            <img class="discover-card-thumb" src="${v.thumbnail}" alt="${escapeHtml(v.title)}">
-            <div class="discover-card-body">
-                <div class="discover-card-title">${escapeHtml(v.title)}</div>
-                <div class="discover-card-channel">${escapeHtml(v.channelTitle)}</div>
-                <div class="discover-card-stats">
-                    <span>👁 ${formatNumber(v.viewCount)}</span>
-                    <span>👍 ${formatNumber(v.likeCount)}</span>
-                    <span>💬 ${formatNumber(v.commentCount)}</span>
-                </div>
-                <div class="discover-card-sub">${t('discover.subLabel', { n: formatNumber(v.subscriberCount || 0) })}</div>
-                <span class="discover-card-ratio ${ratioClass}">${ratioLabel} ${t('discover.subRatioLabel', { n: ratio })}</span>
-                ${velocityBadgeHtml(v)}
-                <div class="discover-card-date">${date}</div>
-            </div>
-            <div class="discover-card-actions">
-                <button class="btn btn-secondary discover-ref-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>${t('discover.saveRef')}</button>
-            </div>
-        </div>`;
-    }).join('');
+    if (_discoverViewMode === 'table') {
+        renderDiscoverTable(videos, grid);
+    } else {
+        renderDiscoverGrid(videos, grid);
+    }
 
+    // Bind save buttons
     grid.querySelectorAll('.discover-ref-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const video = JSON.parse(btn.dataset.video);
@@ -268,4 +264,81 @@ function renderDiscoverResults(videos, hasMore) {
             performSearch(_lastSearchParams, true);
         });
     }
+}
+
+function formatVideoDate(v) {
+    const dateFmt = { year: 'numeric', month: 'short', day: 'numeric' };
+    const dateLocale = getLang() === 'en' ? 'en-US' : 'ko-KR';
+    return new Date(v.publishedAt).toLocaleDateString(dateLocale, dateFmt);
+}
+
+function ratioInfo(v) {
+    const ratio = v.viewToSubRatio || 0;
+    const cls = ratio >= 200 ? 'hot' : ratio >= 50 ? 'good' : 'normal';
+    const label = ratio >= 200 ? '🔥' : ratio >= 50 ? '✨' : '';
+    return { ratio, cls, label };
+}
+
+function renderDiscoverGrid(videos, grid) {
+    grid.className = 'discover-grid';
+    grid.innerHTML = videos.map(v => {
+        const date = formatVideoDate(v);
+        const { ratio, cls, label } = ratioInfo(v);
+        return `
+        <div class="discover-card">
+            <img class="discover-card-thumb" src="${v.thumbnail}" alt="${escapeHtml(v.title)}">
+            <div class="discover-card-body">
+                <div class="discover-card-title">${escapeHtml(v.title)}</div>
+                <div class="discover-card-channel">${escapeHtml(v.channelTitle)}</div>
+                <div class="discover-card-stats">
+                    <span>👁 ${formatNumber(v.viewCount)}</span>
+                    <span>👍 ${formatNumber(v.likeCount)}</span>
+                    <span>💬 ${formatNumber(v.commentCount)}</span>
+                </div>
+                <div class="discover-card-sub">${t('discover.subLabel', { n: formatNumber(v.subscriberCount || 0) })}</div>
+                <span class="discover-card-ratio ${cls}">${label} ${t('discover.subRatioLabel', { n: ratio })}</span>
+                ${velocityBadgeHtml(v)}
+                <div class="discover-card-date">${date}</div>
+            </div>
+            <div class="discover-card-actions">
+                <button class="btn btn-secondary discover-ref-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>${t('discover.saveRef')}</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderDiscoverTable(videos, grid) {
+    grid.className = 'discover-grid discover-table-wrap';
+    const rows = videos.map(v => {
+        const date = formatVideoDate(v);
+        const { ratio, cls, label } = ratioInfo(v);
+        return `<tr>
+            <td><img class="discover-table-thumb" src="${v.thumbnail}" alt=""></td>
+            <td class="discover-table-title">${escapeHtml(v.title)}</td>
+            <td>${escapeHtml(v.channelTitle)}</td>
+            <td class="num">${formatNumber(v.viewCount)}</td>
+            <td class="num">${formatNumber(v.likeCount)}</td>
+            <td class="num">${formatNumber(v.commentCount)}</td>
+            <td class="num">${formatNumber(v.subscriberCount || 0)}</td>
+            <td><span class="discover-card-ratio ${cls}">${label} ${ratio}%</span></td>
+            <td class="discover-table-date">${date}</td>
+            <td><button class="btn btn-secondary btn-sm discover-ref-btn" data-video='${JSON.stringify(v).replace(/'/g, '&#39;')}'>${t('discover.saveRef')}</button></td>
+        </tr>`;
+    }).join('');
+
+    grid.innerHTML = `<table class="discover-table">
+        <thead><tr>
+            <th></th>
+            <th>${t('content.title') || '제목'}</th>
+            <th>${t('discover.channel') || '채널'}</th>
+            <th>${t('discover.views') || '조회수'}</th>
+            <th>${t('discover.likes') || '좋아요'}</th>
+            <th>${t('discover.comments') || '댓글'}</th>
+            <th>${t('channel.subscribers') || '구독자'}</th>
+            <th>${t('discover.subRatio') || '조구비'}</th>
+            <th>${t('discover.date') || '날짜'}</th>
+            <th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
 }

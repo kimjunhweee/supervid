@@ -1119,6 +1119,43 @@ body {
     min-width: 200px; justify-content: center;
 }
 
+/* ===== Discover View Toggle ===== */
+.discover-view-toggle {
+    display: flex; align-items: center; gap: 4px;
+}
+.discover-view-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--bg-primary);
+    color: var(--text-muted); cursor: pointer; transition: all var(--transition);
+}
+.discover-view-btn:hover { color: var(--text-primary); border-color: var(--ring); }
+.discover-view-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ===== Discover Table View ===== */
+.discover-table-wrap { display: block; overflow-x: auto; }
+.discover-table {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+}
+.discover-table th {
+    text-align: left; padding: 8px 10px; font-weight: 600; font-size: 12px;
+    color: var(--text-muted); border-bottom: 1px solid var(--border);
+    white-space: nowrap; position: sticky; top: 0; background: var(--bg-secondary);
+}
+.discover-table td {
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+    vertical-align: middle; color: var(--text-primary);
+}
+.discover-table tbody tr:hover { background: var(--bg-hover); }
+.discover-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.discover-table-thumb {
+    width: 180px; height: 101px; object-fit: cover; border-radius: 4px; display: block;
+}
+.discover-table-title {
+    max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500;
+}
+.discover-table-date { white-space: nowrap; color: var(--text-muted); font-size: 12px; }
+
 /* ===== Channels (채널 탐색) ===== */
 .channel-grid {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
