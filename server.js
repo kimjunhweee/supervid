@@ -733,10 +733,8 @@ app.get('/api/db/search', requireAuth, async (req, res) => {
         });
 
         // YouTube 결과를 바로 DB에 저장 (백그라운드)
-        if (!inputPageToken) {
-            persistVideos(videos, keyword);
-            persistChannels(Object.entries(subMap).map(([id, subscriberCount]) => ({ id, subscriberCount })));
-        }
+        persistVideos(videos, keyword);
+        persistChannels(Object.entries(subMap).map(([id, subscriberCount]) => ({ id, subscriberCount })));
 
         return res.json({ videos, source: 'youtube', hasMore: !!searchData.nextPageToken, nextPageToken: searchData.nextPageToken || null });
     } catch (err) {
