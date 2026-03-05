@@ -75,9 +75,25 @@ function parseDuration(iso) {
     return { duration: iso, duration_seconds: seconds };
 }
 
-function persistVideos(videos) {
+async function persistVideos(videos, keyword) {
     if (!supabase || !videos || videos.length === 0) return;
     const now = new Date().toISOString();
+
+    // 기존 keywords 배열을 가져와서 병합
+    let existingKeywordsMap = {};
+    if (keyword) {
+        try {
+            const ids = videos.map(v => v.id);
+            const { data: existing } = await supabase
+                .from('videos')
+                .select('id, keywords')
+                .in('id', ids);
+            if (existing) {
+                existing.forEach(row => { existingKeywordsMap[row.id] = row.keywords || []; });
+            }
+        } catch { /* 무시 — 새 영상은 빈 배열로 시작 */ }
+    }
+
     const rows = videos.map(v => {
         const row = { id: v.id, crawled_at: now };
         if (v.title) row.title = v.title;
@@ -95,6 +111,10 @@ function persistVideos(videos) {
             row.duration_seconds = duration_seconds;
         }
         if (v.viewToSubRatio != null) row.view_to_sub_ratio = v.viewToSubRatio;
+        if (keyword) {
+            const prev = existingKeywordsMap[v.id] || [];
+            row.keywords = prev.includes(keyword) ? prev : [...prev, keyword];
+        }
         return row;
     });
     supabase.from('videos').upsert(rows, { onConflict: 'id' }).then(() => {}).catch(() => {});
@@ -714,7 +734,7 @@ app.get('/api/db/search', requireAuth, async (req, res) => {
 
         // YouTube 결과를 바로 DB에 저장 (백그라운드)
         if (!inputPageToken) {
-            persistVideos(videos);
+            persistVideos(videos, keyword);
             persistChannels(Object.entries(subMap).map(([id, subscriberCount]) => ({ id, subscriberCount })));
         }
 

@@ -1126,11 +1126,11 @@ body {
 .discover-view-btn {
     display: flex; align-items: center; justify-content: center;
     width: 32px; height: 32px; border-radius: var(--radius);
-    border: 1px solid var(--border); background: var(--bg-primary);
+    border: 1px solid var(--border); background: var(--bg-card);
     color: var(--text-muted); cursor: pointer; transition: all var(--transition);
 }
 .discover-view-btn:hover { color: var(--text-primary); border-color: var(--ring); }
-.discover-view-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.discover-view-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 /* ===== Discover Table View ===== */
 .discover-table-wrap { display: block; overflow-x: auto; }
