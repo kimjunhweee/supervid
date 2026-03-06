@@ -19,6 +19,7 @@ const I18N = {
         'nav.studio': 'YouTube Studio',
         'nav.mypage': '마이페이지',
         'nav.logout': '로그아웃',
+        'nav.newContent': '새 콘텐츠',
 
         // === Header descriptions ===
         'desc.dashboard': '콘텐츠 현황을 한눈에 확인하세요',
@@ -525,6 +526,7 @@ const I18N = {
         'nav.studio': 'YouTube Studio',
         'nav.mypage': 'My Page',
         'nav.logout': 'Log Out',
+        'nav.newContent': 'New Content',
 
         // === Header descriptions ===
         'desc.dashboard': 'See your content status at a glance',

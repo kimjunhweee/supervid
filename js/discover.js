@@ -14,7 +14,7 @@ let _discoverHasMore = false;
 export function setupDiscover() {
     initCustomDropdowns();
     document.getElementById('searchSubmitBtn').addEventListener('click', submitSearch);
-    document.getElementById('searchResetBtn').addEventListener('click', resetSearchForm);
+    document.getElementById('searchClearFilters').addEventListener('click', resetSearchForm);
     document.getElementById('searchKeyword').addEventListener('keydown', e => { if (e.key === 'Enter') submitSearch(); });
 
     // View toggle
@@ -30,8 +30,10 @@ export function setupDiscover() {
     });
 }
 
-function initCustomDropdowns() {
+export function initCustomDropdowns() {
     document.querySelectorAll('.discover-inline-select').forEach(select => {
+        if (select.dataset.customized) return;
+        select.dataset.customized = '1';
         const wrapper = document.createElement('div');
         wrapper.className = 'c-select';
         wrapper._select = select;
@@ -64,6 +66,9 @@ function initCustomDropdowns() {
                 menu.querySelectorAll('.c-select-item').forEach(i => i.classList.remove('selected'));
                 item.classList.add('selected');
                 wrapper.classList.remove('open');
+                // Highlight pill when non-default value selected
+                const isDefault = select.selectedIndex === 0;
+                wrapper.classList.toggle('active', !isDefault);
             });
             menu.appendChild(item);
         });
@@ -82,10 +87,63 @@ function initCustomDropdowns() {
 
     document.addEventListener('click', () => {
         document.querySelectorAll('.c-select.open').forEach(el => el.classList.remove('open'));
+        document.querySelectorAll('.c-range-chip.open').forEach(el => el.classList.remove('open'));
+    });
+
+    initRangeChips();
+}
+
+function initRangeChips() {
+    document.querySelectorAll('.c-range-chip').forEach(chip => {
+        if (chip.dataset.initialized) return;
+        chip.dataset.initialized = '1';
+        const trigger = chip.querySelector('.c-range-trigger');
+        trigger.addEventListener('click', e => {
+            e.stopPropagation();
+            const isOpen = chip.classList.contains('open');
+            document.querySelectorAll('.c-select.open').forEach(el => el.classList.remove('open'));
+            document.querySelectorAll('.c-range-chip.open').forEach(el => el.classList.remove('open'));
+            if (!isOpen) chip.classList.add('open');
+        });
+        // Stop clicks inside panel from closing
+        chip.querySelector('.c-range-panel').addEventListener('click', e => e.stopPropagation());
+        // Listen for select changes
+        chip.querySelectorAll('select').forEach(sel => {
+            sel.addEventListener('change', () => updateRangeChipLabel(chip));
+        });
+        updateRangeChipLabel(chip);
     });
 }
 
-function syncCustomDropdowns() {
+function updateRangeChipLabel(chip) {
+    const selects = chip.querySelectorAll('select');
+    const minSel = selects[0];
+    const maxSel = selects[1];
+    const minVal = parseInt(minSel.value) || 0;
+    const maxVal = parseInt(maxSel.value) || 0;
+    const labelEl = chip.querySelector('.c-range-label');
+    const baseLabel = chip.id.includes('Sub') || chip.id.includes('sub') ? '구독자' : '조회수';
+
+    const fmt = v => {
+        if (v >= 10000000) return (v / 10000000) + '000만';
+        if (v >= 10000) return (v / 10000) + '만';
+        if (v >= 1000) return (v / 1000) + '천';
+        return String(v);
+    };
+
+    if (minVal > 0 && maxVal > 0) {
+        labelEl.textContent = `${baseLabel} ${fmt(minVal)}~${fmt(maxVal)}`;
+    } else if (minVal > 0) {
+        labelEl.textContent = `${baseLabel} ${fmt(minVal)} 이상`;
+    } else if (maxVal > 0) {
+        labelEl.textContent = `${baseLabel} ${fmt(maxVal)} 이하`;
+    } else {
+        labelEl.textContent = baseLabel;
+    }
+    chip.classList.toggle('active', minVal > 0 || maxVal > 0);
+}
+
+export function syncCustomDropdowns() {
     document.querySelectorAll('.c-select').forEach(wrapper => {
         const select = wrapper._select;
         if (!select) return;
@@ -94,7 +152,11 @@ function syncCustomDropdowns() {
         wrapper.querySelectorAll('.c-select-item').forEach(item => {
             item.classList.toggle('selected', item.dataset.value === select.value);
         });
+        const isDefault = select.selectedIndex === 0;
+        wrapper.classList.toggle('active', !isDefault);
     });
+    // Sync range chips
+    document.querySelectorAll('.c-range-chip').forEach(chip => updateRangeChipLabel(chip));
 }
 
 function resetSearchForm() {
@@ -135,8 +197,6 @@ async function performSearch(params, loadMore) {
     if (checkGuestBlock()) return;
     const grid = document.getElementById('discoverGrid');
     const infoEl = document.getElementById('discoverResultInfo');
-    updateActiveFilters(params);
-
     if (!loadMore) {
         _discoverAllVideos = [];
         _discoverNextPageToken = null;
@@ -193,50 +253,12 @@ async function performSearch(params, loadMore) {
     }
 }
 
-function updateActiveFilters(params) {
-    const container = document.getElementById('discoverActiveFilters');
-    const chips = [];
-    chips.push(`"${params.query}"`);
-
-    const durationLabels = { short: t('discover.shorts'), medium: t('discover.medium'), long: t('discover.longPlus') };
-    if (params.duration) chips.push(durationLabels[params.duration]);
-
-    const orderLabels = { viewCount: t('discover.sortViews'), relevance: t('discover.sortRelevance'), date: t('discover.sortDate'), performance: t('discover.sortPerformance'), velocity: t('discover.sortVelocity') };
-    chips.push(orderLabels[params.order] || t('discover.sortViews'));
-
-    const fmt = n => formatNumber(n);
-    const subMin = parseInt(params.subMin) || 0;
-    const subMax = parseInt(params.subMax) || 0;
-    if (subMin > 0 || subMax > 0) {
-        let subLabel = t('channel.subscribers') + ' ';
-        if (subMin > 0 && subMax > 0) subLabel += `${fmt(subMin)}~${fmt(subMax)}`;
-        else if (subMin > 0) subLabel += t('discover.subAbove', { n: fmt(subMin) });
-        else subLabel += t('discover.subBelow', { n: fmt(subMax) });
-        chips.push(subLabel);
-    }
-
-    const viewMin = parseInt(params.viewMin) || 0;
-    const viewMax = parseInt(params.viewMax) || 0;
-    if (viewMin > 0 || viewMax > 0) {
-        let viewLabel = '조회수 ';
-        if (viewMin > 0 && viewMax > 0) viewLabel += `${fmt(viewMin)}~${fmt(viewMax)}`;
-        else if (viewMin > 0) viewLabel += `${fmt(viewMin)} 이상`;
-        else viewLabel += `${fmt(viewMax)} 이하`;
-        chips.push(viewLabel);
-    }
-
-    container.innerHTML = chips.map(c => `<span class="discover-filter-chip">${c}</span>`).join('');
-}
-
 function renderDiscoverResults(videos, hasMore) {
     const grid = document.getElementById('discoverGrid');
-    const toggle = document.getElementById('discoverViewToggle');
     if (!videos || videos.length === 0) {
         grid.innerHTML = `<div class="discover-empty"><p>${t('discover.noResults')}</p></div>`;
-        if (toggle) toggle.style.display = 'none';
         return;
     }
-    if (toggle) toggle.style.display = 'flex';
 
     if (_discoverViewMode === 'table') {
         renderDiscoverTable(videos, grid);

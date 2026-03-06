@@ -7,6 +7,7 @@ import { renderReferences } from './references.js';
 import { renderSavedChannels } from './channels.js';
 import { loadTrendingVideos } from './ideas.js';
 import { updateUploadGoal, updateLastUploadBanner } from './youtube.js';
+import { openAddContent } from './newcontent.js';
 import { renderAll } from '../app.js';
 
 // ===== Theme =====
@@ -83,6 +84,7 @@ export function setupNavigation() {
         item.addEventListener('click', () => switchTab(item.dataset.tab));
     });
     document.querySelector('.sidebar-logo').addEventListener('click', () => switchTab('dashboard'));
+    document.getElementById('sidebarNewContentBtn').addEventListener('click', () => openAddContent());
 
     // Lab toggle
     const labToggle = document.getElementById('labToggle');

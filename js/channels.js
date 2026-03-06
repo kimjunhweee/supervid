@@ -2,6 +2,7 @@
 import { state, saveSavedChannels } from './state.js';
 import { escapeHtml, formatNumber, toast, formatRelativeTime, parseDurationToSeconds } from './utils.js';
 import { checkGuestBlock } from './auth.js';
+import { initCustomDropdowns, syncCustomDropdowns } from './discover.js';
 
 let _detailVideos = [];
 let _detailChannel = null;
@@ -15,11 +16,13 @@ let _lastSubMin = 0;
 let _lastSubMax = 0;
 
 export function setupChannelSearch() {
+    initCustomDropdowns();
     document.getElementById('channelSearchSubmitBtn').addEventListener('click', submitChannelSearch);
-    document.getElementById('channelSearchResetBtn').addEventListener('click', () => {
+    document.getElementById('channelClearFilters').addEventListener('click', () => {
         document.getElementById('channelSearchKeyword').value = '';
         document.getElementById('channelSubMin').value = '0';
         document.getElementById('channelSubMax').value = '0';
+        syncCustomDropdowns();
     });
     document.getElementById('channelSearchKeyword').addEventListener('keydown', e => { if (e.key === 'Enter') submitChannelSearch(); });
 
