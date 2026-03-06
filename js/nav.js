@@ -128,6 +128,26 @@ export function setupLangSwitcher() {
     });
 }
 
+// ===== Plan Badge =====
+export function updatePlanBadge() {
+    const badge = document.getElementById('sidebarPlanBadge');
+    if (!badge) return;
+    const plan = state.plan || 'free';
+    const label = document.getElementById('planLabel');
+    const usage = document.getElementById('planUsage');
+    label.textContent = plan.charAt(0).toUpperCase() + plan.slice(1);
+    label.dataset.plan = plan;
+    if (plan === 'pro') {
+        usage.textContent = '';
+    } else {
+        const u = state.usage;
+        const searchText = `${t('nav.discover')} ${u.searchCount}/${u.dailyLimit}`;
+        const refsText = `${t('nav.references')} ${state.references.length}/${u.refsLimit}`;
+        usage.textContent = `${searchText} · ${refsText}`;
+    }
+    badge.style.display = '';
+}
+
 export function applyLanguageSwitch() {
     applyI18nToDOM();
     updateTodayDate();

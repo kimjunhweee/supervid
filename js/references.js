@@ -3,6 +3,7 @@ import { state, saveReferences, saveRefFolders } from './state.js';
 import { escapeHtml, formatNumber, generateId, toast } from './utils.js';
 // Circular import (resolved at runtime):
 import { openAddContent } from './newcontent.js';
+import { updatePlanBadge } from './nav.js';
 
 // _pendingRefVideo is shared between saveAsReference (called from discover/channels/outliers)
 // and confirmRefFolderSave
@@ -12,6 +13,12 @@ export function saveAsReference(video) {
     const exists = state.references.some(r => r.videoId === video.id);
     if (exists) {
         toast(t('toast.refAlreadySaved'));
+        return;
+    }
+    // 레퍼런스 저장 한도 체크
+    const limit = state.usage.refsLimit;
+    if (limit !== -1 && state.references.length >= limit) {
+        toast(`레퍼런스 저장 한도(${limit}개)를 초과했습니다. 플랜 업그레이드로 더 많은 레퍼런스를 저장하세요.`);
         return;
     }
     _pendingRefVideo = video;
@@ -130,7 +137,9 @@ export function useReferenceAsContent(refId) {
 
 export function deleteReference(refId) {
     state.references = state.references.filter(r => r.id !== refId);
+    state.usage.refsUsed = state.references.length;
     saveReferences();
+    updatePlanBadge();
     renderReferences();
     toast(t('toast.refDeleted'));
 }
@@ -202,6 +211,8 @@ export function confirmRefFolderSave() {
         folderId: folderId
     });
     saveReferences();
+    state.usage.refsUsed = state.references.length;
+    updatePlanBadge();
     closeRefFolderModal();
     toast(t('toast.refSaved'));
     if (state.currentTab === 'references') renderReferences();

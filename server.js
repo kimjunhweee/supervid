@@ -25,7 +25,7 @@ async function ensureUser(user) {
     const { error } = await supabase
         .from('user_data')
         .upsert(
-            { google_id: user.id, email: user.email, name: user.name },
+            { google_id: user.id, email: user.email, name: user.name, plan: 'free', usage: { searchCount: 0, lastSearchDate: '' } },
             { onConflict: 'google_id', ignoreDuplicates: true }
         );
     if (error) console.error('ensureUser 오류:', error.message);
@@ -34,6 +34,58 @@ async function ensureUser(user) {
         .from('user_data')
         .update({ last_login_at: new Date().toISOString() })
         .eq('google_id', user.id);
+}
+
+// ===== 플랜별 사용량 제한 =====
+const PLAN_LIMITS = {
+    free:  { dailySearch: 3,  maxRefs: 5 },
+    basic: { dailySearch: 15, maxRefs: 50 },
+    pro:   { dailySearch: Infinity, maxRefs: Infinity }
+};
+
+async function checkSearchLimit(req, res, next) {
+    if (!supabase) return next(); // DB 없으면 제한 없음
+    try {
+        const { data } = await supabase
+            .from('user_data')
+            .select('plan, usage')
+            .eq('google_id', req.user.id)
+            .single();
+
+        const plan = (data && data.plan) || 'free';
+        const usage = (data && data.usage) || { searchCount: 0, lastSearchDate: '' };
+        const today = new Date().toISOString().slice(0, 10);
+        const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+        // 날짜 바뀌면 리셋
+        if (usage.lastSearchDate !== today) {
+            usage.searchCount = 0;
+            usage.lastSearchDate = today;
+        }
+
+        if (limits.dailySearch !== Infinity && usage.searchCount >= limits.dailySearch) {
+            return res.status(403).json({
+                error: `일일 검색 한도(${limits.dailySearch}회)를 초과했습니다. 플랜 업그레이드로 더 많은 검색을 이용하세요.`,
+                limitExceeded: 'search',
+                plan,
+                used: usage.searchCount,
+                limit: limits.dailySearch
+            });
+        }
+
+        // 카운트 증가 + 저장
+        usage.searchCount++;
+        await supabase
+            .from('user_data')
+            .update({ usage })
+            .eq('google_id', req.user.id);
+
+        req.planInfo = { plan, searchUsed: usage.searchCount, searchLimit: limits.dailySearch };
+        next();
+    } catch (err) {
+        console.error('checkSearchLimit 오류:', err.message);
+        next(); // 오류 시 통과시킴
+    }
 }
 
 // ===== Supabase 캐시 헬퍼 =====
@@ -303,6 +355,26 @@ app.get('/api/data', requireAuth, async (req, res) => {
 app.put('/api/data', requireAuth, async (req, res) => {
     if (!supabase) return res.json({ noDb: true });
 
+    // 레퍼런스 저장 제한 체크
+    if (req.body.refs && Array.isArray(req.body.refs)) {
+        const { data: userData } = await supabase
+            .from('user_data')
+            .select('plan')
+            .eq('google_id', req.user.id)
+            .single();
+        const plan = (userData && userData.plan) || 'free';
+        const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+        if (limits.maxRefs !== Infinity && req.body.refs.length > limits.maxRefs) {
+            return res.status(403).json({
+                error: `레퍼런스 저장 한도(${limits.maxRefs}개)를 초과했습니다. 플랜 업그레이드로 더 많은 레퍼런스를 저장하세요.`,
+                limitExceeded: 'refs',
+                plan,
+                used: req.body.refs.length,
+                limit: limits.maxRefs
+            });
+        }
+    }
+
     const allowed = ['contents', 'refs', 'ref_folders', 'upload_goal', 'weekly_goal', 'yt_channel', 'saved_channels'];
     const patch = {};
     for (const key of allowed) {
@@ -320,6 +392,63 @@ app.put('/api/data', requireAuth, async (req, res) => {
 
     if (error) return res.status(500).json({ error: error.message });
     res.json({ ok: true });
+});
+
+// ===== 플랜 상태 조회 =====
+app.get('/api/plan/status', requireAuth, async (req, res) => {
+    if (!supabase) return res.json({ plan: 'pro', usage: { searchCount: 0, dailyLimit: Infinity, refsLimit: Infinity, refsUsed: 0 } });
+    try {
+        const { data } = await supabase
+            .from('user_data')
+            .select('plan, usage, refs')
+            .eq('google_id', req.user.id)
+            .single();
+
+        const plan = (data && data.plan) || 'free';
+        const usage = (data && data.usage) || { searchCount: 0, lastSearchDate: '' };
+        const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+        const today = new Date().toISOString().slice(0, 10);
+
+        // 날짜 바뀌면 리셋
+        const searchCount = usage.lastSearchDate === today ? usage.searchCount : 0;
+        const refsUsed = (data && data.refs && Array.isArray(data.refs)) ? data.refs.length : 0;
+
+        res.json({
+            plan,
+            usage: {
+                searchCount,
+                dailyLimit: limits.dailySearch === Infinity ? -1 : limits.dailySearch,
+                refsUsed,
+                refsLimit: limits.maxRefs === Infinity ? -1 : limits.maxRefs
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ===== 플랜 변경 (어드민 전용) =====
+app.put('/api/plan/change', requireAuth, async (req, res) => {
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (!adminEmail || req.user.email !== adminEmail) {
+        return res.status(403).json({ error: '권한이 없습니다.' });
+    }
+    const { plan, email } = req.body;
+    if (!['free', 'basic', 'pro'].includes(plan)) {
+        return res.status(400).json({ error: '유효하지 않은 플랜입니다.' });
+    }
+    if (!supabase) return res.json({ plan, message: '플랜이 변경되었습니다.' });
+    const targetEmail = email || req.user.email;
+    try {
+        const { error } = await supabase
+            .from('user_data')
+            .update({ plan })
+            .eq('email', targetEmail);
+        if (error) throw error;
+        res.json({ plan, email: targetEmail, message: '플랜이 변경되었습니다.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // ===== API 사용량 조회 =====
@@ -514,7 +643,7 @@ app.get('/api/youtube/videos', requireAuth, async (req, res) => {
 });
 
 // ===== YouTube 검색 =====
-app.get('/api/youtube/search', requireAuth, async (req, res) => {
+app.get('/api/youtube/search', requireAuth, checkSearchLimit, async (req, res) => {
     const { q, order = 'viewCount', maxResults = '12', videoDuration, pages = '1', pageToken: inputPageToken } = req.query;
     if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
 
@@ -616,7 +745,7 @@ async function triggerCrawlForKeyword(keyword) {
 
 const DB_SEARCH_THRESHOLD = 20;
 
-app.get('/api/db/search', requireAuth, async (req, res) => {
+app.get('/api/db/search', requireAuth, checkSearchLimit, async (req, res) => {
     const { q, order = 'viewCount', subMin, subMax, viewMin, viewMax, duration, offset = '0', limit = '50', pageToken: inputPageToken } = req.query;
     if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
 
@@ -882,7 +1011,7 @@ app.get('/api/youtube/keyword-suggestions', requireAuth, async (req, res) => {
 });
 
 // ===== 채널 검색 =====
-app.get('/api/youtube/search-channels', requireAuth, async (req, res) => {
+app.get('/api/youtube/search-channels', requireAuth, checkSearchLimit, async (req, res) => {
     const { q, maxResults = '12', pageToken } = req.query;
     if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
 

@@ -1,6 +1,6 @@
 // ===== App Entry Point =====
 import { state, migrateScriptsToContents } from './js/state.js';
-import { applyTheme, setupThemeToggle, setupSidebarToggle, setupNavigation, updateTodayDate, setupLangSwitcher, getNavTitle } from './js/nav.js';
+import { applyTheme, setupThemeToggle, setupSidebarToggle, setupNavigation, updateTodayDate, setupLangSwitcher, getNavTitle, updatePlanBadge } from './js/nav.js';
 import { checkAuth, enterGuestMode } from './js/auth.js';
 import { renderDashboard, setupChart } from './js/dashboard.js';
 import { setupKanban, renderKanban, setupContentModal, setupModalTabs, setupScriptEditorToolbar, setupChecklist } from './js/kanban.js';
@@ -54,6 +54,7 @@ export function initApp() {
         _appInitialized = true;
     }
     renderAll();
+    updatePlanBadge();
 }
 
 document.addEventListener('DOMContentLoaded', () => {

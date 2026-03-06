@@ -2,7 +2,8 @@
 import { state, saveSavedChannels } from './state.js';
 import { escapeHtml, formatNumber, toast, formatRelativeTime, parseDurationToSeconds } from './utils.js';
 import { checkGuestBlock } from './auth.js';
-import { initCustomDropdowns, syncCustomDropdowns } from './discover.js';
+import { initCustomDropdowns, syncCustomDropdowns, updateSearchQuotaDisplay } from './discover.js';
+import { updatePlanBadge } from './nav.js';
 
 let _detailVideos = [];
 let _detailChannel = null;
@@ -96,8 +97,19 @@ async function performChannelSearch(query, subMin, subMax, pageToken) {
         const res = await fetch(`/api/youtube/search-channels?q=${encodeURIComponent(query)}&maxResults=50${tokenParam}`);
         if (!res.ok) {
             const err = await res.json();
+            if (err.limitExceeded === 'search') {
+                toast(err.error);
+                state.usage.searchCount = err.used || state.usage.searchCount;
+                updateSearchQuotaDisplay();
+                updatePlanBadge();
+                if (!isLoadMore) grid.innerHTML = `<div class="discover-empty"><p>${escapeHtml(err.error)}</p></div>`;
+                return;
+            }
             throw new Error(err.error || t('misc.searchFail'));
         }
+        state.usage.searchCount++;
+        updateSearchQuotaDisplay();
+        updatePlanBadge();
         const data = await res.json();
         let channels = data.channels || data;
         _nextPageToken = data.nextPageToken || null;

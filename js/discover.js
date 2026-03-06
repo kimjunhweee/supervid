@@ -2,6 +2,8 @@
 import { checkGuestBlock } from './auth.js';
 import { escapeHtml, formatNumber, toast, velocityBadgeHtml } from './utils.js';
 import { saveAsReference } from './references.js';
+import { state } from './state.js';
+import { updatePlanBadge } from './nav.js';
 
 let _lastSearchParams = null;
 let _discoverNextPageToken = null;
@@ -10,6 +12,19 @@ let _discoverSource = null;  // 'db' | 'youtube'
 let _discoverOffset = 0;
 let _discoverViewMode = 'grid';
 let _discoverHasMore = false;
+
+export function updateSearchQuotaDisplay() {
+    const el = document.getElementById('searchQuotaInfo');
+    if (!el) return;
+    const limit = state.usage.dailyLimit;
+    if (limit === -1) {
+        el.textContent = '';
+        return;
+    }
+    const remaining = Math.max(0, limit - state.usage.searchCount);
+    el.textContent = `오늘 남은 검색: ${remaining}/${limit}`;
+    el.style.color = remaining === 0 ? 'var(--red)' : 'var(--text-muted)';
+}
 
 export function setupDiscover() {
     initCustomDropdowns();
@@ -28,6 +43,8 @@ export function setupDiscover() {
             if (_discoverAllVideos.length > 0) renderDiscoverResults(_discoverAllVideos, _discoverHasMore);
         });
     });
+
+    updateSearchQuotaDisplay();
 }
 
 export function initCustomDropdowns() {
@@ -225,9 +242,25 @@ async function performSearch(params, loadMore) {
         const res = await fetch(`/api/db/search?${urlParams}`);
         if (!res.ok) {
             let msg = t('misc.searchFail');
-            try { const err = await res.json(); msg = err.error || msg; } catch {}
+            try {
+                const err = await res.json();
+                if (err.limitExceeded === 'search') {
+                    toast(err.error);
+                    // 사용량 업데이트
+                    state.usage.searchCount = err.used || state.usage.searchCount;
+                    updateSearchQuotaDisplay();
+                    updatePlanBadge();
+                    if (!loadMore) grid.innerHTML = `<div class="discover-empty"><p>${escapeHtml(err.error)}</p></div>`;
+                    return;
+                }
+                msg = err.error || msg;
+            } catch {}
             throw new Error(msg);
         }
+        // 검색 성공 시 카운트 증가 표시
+        state.usage.searchCount++;
+        updateSearchQuotaDisplay();
+        updatePlanBadge();
         const data = await res.json();
         const videos = data.videos || [];
 

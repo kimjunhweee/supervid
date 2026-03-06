@@ -12,7 +12,9 @@ export const state = {
     calendarDate: new Date(),
     theme: localStorage.getItem('creatorhub_theme') || 'dark',
     user: null,
-    isGuest: false
+    isGuest: false,
+    plan: 'free',
+    usage: { searchCount: 0, dailyLimit: 3, refsLimit: 5, refsUsed: 0 }
 };
 
 export const STATUS_ORDER = ['idea', 'scripting', 'filming', 'editing', 'scheduled', 'published'];
@@ -59,7 +61,7 @@ export function syncToServer(patch) {
 export async function loadDataFromServer() {
     try {
         const res = await fetch('/api/data');
-        if (!res.ok) return;
+        if (!res.ok) throw new Error('data fetch failed');
         const data = await res.json();
 
         if (!data || data.noDb) {
@@ -98,6 +100,16 @@ export async function loadDataFromServer() {
             });
         }
     } catch { /* 실패 시 localStorage 데이터로 정상 동작 */ }
+
+    // 플랜 상태 로드
+    try {
+        const planRes = await fetch('/api/plan/status');
+        if (planRes.ok) {
+            const planData = await planRes.json();
+            state.plan = planData.plan || 'free';
+            state.usage = planData.usage || state.usage;
+        }
+    } catch { /* 실패 시 기본값 유지 */ }
 }
 
 // ===== Data Migration =====
