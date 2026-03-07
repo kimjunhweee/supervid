@@ -278,12 +278,12 @@ body {
 /* ===== CTA Card ===== */
 .cta-card {
     display: flex; align-items: stretch; overflow: hidden;
-    background: linear-gradient(135deg, rgba(251,113,133,0.06) 0%, rgba(251,113,133,0.02) 50%, transparent 100%);
+    background: linear-gradient(135deg, rgba(3,255,221,0.06) 0%, rgba(3,255,221,0.02) 50%, transparent 100%);
     border: 1px solid var(--border); border-radius: var(--radius);
     padding: 0; margin-bottom: 16px;
 }
 [data-theme="light"] .cta-card {
-    background: linear-gradient(135deg, rgba(251,113,133,0.10) 0%, rgba(251,113,133,0.03) 50%, #fff 100%);
+    background: linear-gradient(135deg, rgba(3,255,221,0.10) 0%, rgba(3,255,221,0.03) 50%, #fff 100%);
 }
 .cta-card-body { flex: 1; padding: 40px 32px; }
 .cta-card-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
@@ -306,10 +306,10 @@ body {
 }
 .cta-deco-bar {
     flex: 1; border-radius: 3px 3px 0 0;
-    background: linear-gradient(180deg, rgba(251,113,133,0.12) 0%, rgba(251,113,133,0.04) 100%);
+    background: linear-gradient(180deg, rgba(3,255,221,0.12) 0%, rgba(3,255,221,0.04) 100%);
 }
 [data-theme="light"] .cta-deco-bar {
-    background: linear-gradient(180deg, rgba(251,113,133,0.15) 0%, rgba(251,113,133,0.05) 100%);
+    background: linear-gradient(180deg, rgba(3,255,221,0.15) 0%, rgba(3,255,221,0.05) 100%);
 }
 .welcome-title { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
 .welcome-message { font-size: 15px; font-weight: 500; color: var(--text-muted); margin-top: 2px; }
