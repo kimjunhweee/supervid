@@ -19,10 +19,10 @@
     --text-secondary: #a3a3a3;/* neutral-400 */
     --text-muted: #737373;    /* neutral-500 */
     --border: rgba(255, 255, 255, 0.10);
-    --accent: #fb7185;        /* rose-400 — primary accent */
-    --accent-hover: #f43f5e;  /* rose-500 */
-    --accent-light: rgba(251, 113, 133, 0.10);
-    --ring: #fb7185;
+    --accent: #03FFDD;        /* cyan — primary accent */
+    --accent-hover: #02d4b8;  /* darker cyan */
+    --accent-light: rgba(3, 255, 221, 0.10);
+    --ring: #03FFDD;
     --green: #22c55e; --green-light: rgba(34, 197, 94, 0.12);
     --orange: #f97316; --orange-light: rgba(249, 115, 22, 0.12);
     --blue: #3b82f6; --blue-light: rgba(59, 130, 246, 0.12);
@@ -47,10 +47,10 @@
     --text-secondary: #737373;/* neutral-500 */
     --text-muted: #a3a3a3;   /* neutral-400 */
     --border: #e5e5e5;       /* neutral-200 */
-    --accent: #fb7185;       /* rose-400 */
-    --accent-hover: #f43f5e; /* rose-500 */
-    --accent-light: rgba(251, 113, 133, 0.12);
-    --ring: #fb7185;
+    --accent: #03FFDD;       /* cyan */
+    --accent-hover: #02d4b8; /* darker cyan */
+    --accent-light: rgba(3, 255, 221, 0.12);
+    --ring: #03FFDD;
     --green-light: rgba(34, 197, 94, 0.08);
     --orange-light: rgba(249, 115, 22, 0.08);
     --blue-light: rgba(59, 130, 246, 0.08);
