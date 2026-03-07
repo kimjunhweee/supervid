@@ -14,7 +14,7 @@ export const state = {
     user: null,
     isGuest: false,
     plan: 'free',
-    usage: { searchCount: 0, dailyLimit: 3, refsLimit: 5, refsUsed: 0 }
+    usage: { searchCount: 0, searchLimit: 3, channelSearchCount: 0, channelSearchLimit: 3, refsLimit: 5, refsUsed: 0 }
 };
 
 export const STATUS_ORDER = ['idea', 'scripting', 'filming', 'editing', 'scheduled', 'published'];

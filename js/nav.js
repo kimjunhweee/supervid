@@ -141,9 +141,11 @@ export function updatePlanBadge() {
         usage.textContent = '';
     } else {
         const u = state.usage;
-        const searchText = `${t('nav.discover')} ${u.searchCount}/${u.dailyLimit}`;
-        const refsText = `${t('nav.references')} ${state.references.length}/${u.refsLimit}`;
-        usage.textContent = `${searchText} · ${refsText}`;
+        const parts = [];
+        if (u.searchLimit !== -1) parts.push(`${t('nav.discover')} ${u.searchCount}/${u.searchLimit}`);
+        if (u.channelSearchLimit !== -1) parts.push(`${t('nav.channels')} ${u.channelSearchCount}/${u.channelSearchLimit}`);
+        if (u.refsLimit !== -1) parts.push(`${t('nav.references')} ${state.references.length}/${u.refsLimit}`);
+        usage.textContent = parts.join(' · ');
     }
     badge.style.display = '';
 }

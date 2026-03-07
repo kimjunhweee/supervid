@@ -16,7 +16,7 @@ let _discoverHasMore = false;
 export function updateSearchQuotaDisplay() {
     const el = document.getElementById('searchQuotaInfo');
     if (!el) return;
-    const limit = state.usage.dailyLimit;
+    const limit = state.usage.searchLimit;
     if (limit === -1) {
         el.textContent = '';
         return;

@@ -38,55 +38,67 @@ async function ensureUser(user) {
 
 // ===== 플랜별 사용량 제한 =====
 const PLAN_LIMITS = {
-    free:  { dailySearch: 3,  maxRefs: 5 },
-    basic: { dailySearch: 15, maxRefs: 50 },
-    pro:   { dailySearch: Infinity, maxRefs: Infinity }
+    free:  { dailySearch: 3, dailyChannelSearch: 3, maxRefs: 5 },
+    basic: { dailySearch: 15, dailyChannelSearch: 10, maxRefs: 50 },
+    pro:   { dailySearch: Infinity, dailyChannelSearch: Infinity, maxRefs: Infinity }
 };
 
-async function checkSearchLimit(req, res, next) {
-    if (!supabase) return next(); // DB 없으면 제한 없음
-    try {
-        const { data } = await supabase
-            .from('user_data')
-            .select('plan, usage')
-            .eq('google_id', req.user.id)
-            .single();
+function createSearchLimitMiddleware(type) {
+    // type: 'search' | 'channelSearch'
+    const countKey = type === 'channelSearch' ? 'channelSearchCount' : 'searchCount';
+    const limitKey = type === 'channelSearch' ? 'dailyChannelSearch' : 'dailySearch';
+    const label = type === 'channelSearch' ? '채널 검색' : '콘텐츠 검색';
 
-        const plan = (data && data.plan) || 'free';
-        const usage = (data && data.usage) || { searchCount: 0, lastSearchDate: '' };
-        const today = new Date().toISOString().slice(0, 10);
-        const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+    return async function checkLimit(req, res, next) {
+        if (!supabase) return next();
+        try {
+            const { data } = await supabase
+                .from('user_data')
+                .select('plan, usage')
+                .eq('google_id', req.user.id)
+                .single();
 
-        // 날짜 바뀌면 리셋
-        if (usage.lastSearchDate !== today) {
-            usage.searchCount = 0;
-            usage.lastSearchDate = today;
+            const plan = (data && data.plan) || 'free';
+            const usage = (data && data.usage) || {};
+            const today = new Date().toISOString().slice(0, 10);
+            const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+            // 날짜 바뀌면 리셋
+            if (usage.lastSearchDate !== today) {
+                usage.searchCount = 0;
+                usage.channelSearchCount = 0;
+                usage.lastSearchDate = today;
+            }
+            if (!usage[countKey]) usage[countKey] = 0;
+
+            const limit = limits[limitKey];
+            if (limit !== Infinity && usage[countKey] >= limit) {
+                return res.status(403).json({
+                    error: `일일 ${label} 한도(${limit}회)를 초과했습니다. 플랜 업그레이드로 더 많은 검색을 이용하세요.`,
+                    limitExceeded: type,
+                    plan,
+                    used: usage[countKey],
+                    limit
+                });
+            }
+
+            usage[countKey]++;
+            await supabase
+                .from('user_data')
+                .update({ usage })
+                .eq('google_id', req.user.id);
+
+            req.planInfo = { plan, used: usage[countKey], limit };
+            next();
+        } catch (err) {
+            console.error('checkSearchLimit 오류:', err.message);
+            next();
         }
-
-        if (limits.dailySearch !== Infinity && usage.searchCount >= limits.dailySearch) {
-            return res.status(403).json({
-                error: `일일 검색 한도(${limits.dailySearch}회)를 초과했습니다. 플랜 업그레이드로 더 많은 검색을 이용하세요.`,
-                limitExceeded: 'search',
-                plan,
-                used: usage.searchCount,
-                limit: limits.dailySearch
-            });
-        }
-
-        // 카운트 증가 + 저장
-        usage.searchCount++;
-        await supabase
-            .from('user_data')
-            .update({ usage })
-            .eq('google_id', req.user.id);
-
-        req.planInfo = { plan, searchUsed: usage.searchCount, searchLimit: limits.dailySearch };
-        next();
-    } catch (err) {
-        console.error('checkSearchLimit 오류:', err.message);
-        next(); // 오류 시 통과시킴
-    }
+    };
 }
+
+const checkSearchLimit = createSearchLimitMiddleware('search');
+const checkChannelSearchLimit = createSearchLimitMiddleware('channelSearch');
 
 // ===== Supabase 캐시 헬퍼 =====
 const CACHE_TTL = 30 * 60 * 1000;
@@ -396,7 +408,7 @@ app.put('/api/data', requireAuth, async (req, res) => {
 
 // ===== 플랜 상태 조회 =====
 app.get('/api/plan/status', requireAuth, async (req, res) => {
-    if (!supabase) return res.json({ plan: 'pro', usage: { searchCount: 0, dailyLimit: Infinity, refsLimit: Infinity, refsUsed: 0 } });
+    if (!supabase) return res.json({ plan: 'pro', usage: { searchCount: 0, searchLimit: -1, channelSearchCount: 0, channelSearchLimit: -1, refsUsed: 0, refsLimit: -1 } });
     try {
         const { data } = await supabase
             .from('user_data')
@@ -405,19 +417,20 @@ app.get('/api/plan/status', requireAuth, async (req, res) => {
             .single();
 
         const plan = (data && data.plan) || 'free';
-        const usage = (data && data.usage) || { searchCount: 0, lastSearchDate: '' };
+        const usage = (data && data.usage) || {};
         const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
         const today = new Date().toISOString().slice(0, 10);
+        const isToday = usage.lastSearchDate === today;
 
-        // 날짜 바뀌면 리셋
-        const searchCount = usage.lastSearchDate === today ? usage.searchCount : 0;
         const refsUsed = (data && data.refs && Array.isArray(data.refs)) ? data.refs.length : 0;
 
         res.json({
             plan,
             usage: {
-                searchCount,
-                dailyLimit: limits.dailySearch === Infinity ? -1 : limits.dailySearch,
+                searchCount: isToday ? (usage.searchCount || 0) : 0,
+                searchLimit: limits.dailySearch === Infinity ? -1 : limits.dailySearch,
+                channelSearchCount: isToday ? (usage.channelSearchCount || 0) : 0,
+                channelSearchLimit: limits.dailyChannelSearch === Infinity ? -1 : limits.dailyChannelSearch,
                 refsUsed,
                 refsLimit: limits.maxRefs === Infinity ? -1 : limits.maxRefs
             }
@@ -1011,7 +1024,7 @@ app.get('/api/youtube/keyword-suggestions', requireAuth, async (req, res) => {
 });
 
 // ===== 채널 검색 =====
-app.get('/api/youtube/search-channels', requireAuth, checkSearchLimit, async (req, res) => {
+app.get('/api/youtube/search-channels', requireAuth, checkChannelSearchLimit, async (req, res) => {
     const { q, maxResults = '12', pageToken } = req.query;
     if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
 
