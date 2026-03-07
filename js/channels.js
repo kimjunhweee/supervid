@@ -111,7 +111,8 @@ async function performChannelSearch(query, subMin, subMax, pageToken) {
         if (subMin > 0) channels = channels.filter(ch => ch.subscriberCount >= subMin);
         if (subMax > 0) channels = channels.filter(ch => ch.subscriberCount <= subMax);
 
-        _lastSearchResults = [..._lastSearchResults, ...channels];
+        const existingIds = new Set(_lastSearchResults.map(ch => ch.id));
+        _lastSearchResults = [..._lastSearchResults, ...channels.filter(ch => !existingIds.has(ch.id))];
 
         infoEl.textContent = hasSubFilter
             ? t('discover.fetchMatch', { total: _lastSearchResults.length, match: _lastSearchResults.length })
