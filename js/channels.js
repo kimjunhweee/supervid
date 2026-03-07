@@ -243,7 +243,12 @@ function channelCardHtml(ch) {
 
 function renderChannelGrid(nameResults, discoveredResults) {
     const grid = document.getElementById('channelGrid');
-    const allChannels = [...(nameResults || []), ...(discoveredResults || [])];
+    // 중복 채널 제거 (id 기준)
+    const seenIds = new Set();
+    const dedup = arr => (arr || []).filter(ch => { if (seenIds.has(ch.id)) return false; seenIds.add(ch.id); return true; });
+    nameResults = dedup(nameResults);
+    discoveredResults = dedup(discoveredResults);
+    const allChannels = [...nameResults, ...discoveredResults];
 
     if (!allChannels.length) {
         grid.innerHTML = `<div class="discover-empty"><p>${t('discover.noResults')}</p></div>`;
