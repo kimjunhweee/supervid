@@ -1358,8 +1358,9 @@ body {
 .ch-saved-card-remove:hover { color: var(--red); }
 
 .ref-header {
-    display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
 }
+.ref-header .discover-view-toggle { margin-left: auto; }
 .ref-count { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
 .ref-grid {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;

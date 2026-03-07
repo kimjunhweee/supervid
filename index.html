@@ -771,6 +771,19 @@
             <div class="ref-subtab-panel active" id="refPanelContent">
                 <div class="ref-header">
                     <span class="ref-count" id="refCount">0개의 레퍼런스</span>
+                    <div class="discover-view-toggle" id="refViewToggle">
+                        <button class="discover-view-btn active" data-view="grid" title="그리드">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                                <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                            </svg>
+                        </button>
+                        <button class="discover-view-btn" data-view="table" title="테이블">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                            </svg>
+                        </button>
+                    </div>
                     <button class="btn btn-secondary btn-sm" id="refClearAllBtn" style="display:none" data-i18n="ref.clearAll">전체 삭제</button>
                 </div>
                 <div class="ref-folder-bar" id="refFolderBar"></div>

@@ -8,6 +8,7 @@ import { updatePlanBadge } from './nav.js';
 // _pendingRefVideo is shared between saveAsReference (called from discover/channels/outliers)
 // and confirmRefFolderSave
 export let _pendingRefVideo = null;
+let _refViewMode = 'grid';
 
 export function saveAsReference(video) {
     const exists = state.references.some(r => r.videoId === video.id);
@@ -33,6 +34,18 @@ export function setupReferences() {
         saveReferences();
         renderReferences();
         toast(t('toast.allRefDeleted'));
+    });
+
+    // View toggle
+    document.querySelectorAll('#refViewToggle .discover-view-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.dataset.view;
+            if (mode === _refViewMode) return;
+            _refViewMode = mode;
+            document.querySelectorAll('#refViewToggle .discover-view-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderReferences();
+        });
     });
 
     // Folder modal events
@@ -75,6 +88,7 @@ export function renderReferences() {
     clearBtn.style.display = state.references.length > 0 ? '' : 'none';
 
     if (filtered.length === 0) {
+        grid.className = 'ref-grid';
         grid.innerHTML = `
             <div class="discover-empty">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);margin-bottom:12px"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
@@ -84,6 +98,15 @@ export function renderReferences() {
         return;
     }
 
+    if (_refViewMode === 'table') {
+        renderRefTable(filtered, grid);
+    } else {
+        renderRefGrid(filtered, grid);
+    }
+}
+
+function renderRefGrid(filtered, grid) {
+    grid.className = 'ref-grid';
     grid.innerHTML = filtered.map(ref => {
         const dateLocale = getLang() === 'en' ? 'en-US' : 'ko-KR';
         const pubDate = new Date(ref.publishedAt).toLocaleDateString(dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
@@ -117,10 +140,58 @@ export function renderReferences() {
         </div>`;
     }).join('');
 
-    grid.querySelectorAll('.ref-use-btn').forEach(btn => {
+    bindRefCardEvents(grid);
+}
+
+function renderRefTable(filtered, grid) {
+    grid.className = 'ref-grid discover-table-wrap';
+    const rows = filtered.map(ref => {
+        const dateLocale = getLang() === 'en' ? 'en-US' : 'ko-KR';
+        const savedDate = new Date(ref.savedAt).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' });
+        const ratio = ref.viewToSubRatio || 0;
+        const cls = ratio >= 200 ? 'hot' : ratio >= 50 ? 'good' : 'normal';
+        const label = ratio >= 200 ? '🔥' : ratio >= 50 ? '✨' : '';
+        return `<tr>
+            <td><a href="${ref.url}" target="_blank"><img class="discover-table-thumb" src="${ref.thumbnail}" alt=""></a></td>
+            <td class="discover-table-title">${escapeHtml(ref.title)}</td>
+            <td>${escapeHtml(ref.channelTitle)}</td>
+            <td class="num">${formatNumber(ref.viewCount)}</td>
+            <td class="num">${formatNumber(ref.likeCount)}</td>
+            <td class="num">${formatNumber(ref.commentCount)}</td>
+            <td class="num">${formatNumber(ref.subscriberCount || 0)}</td>
+            <td>${ratio ? `<span class="discover-card-ratio ${cls}">${label} ${ratio}%</span>` : '-'}</td>
+            <td class="discover-table-date">${savedDate}</td>
+            <td style="white-space:nowrap">
+                <button class="btn btn-primary btn-sm ref-use-btn" data-id="${ref.id}">${t('ref.useAsContent')}</button>
+                <button class="btn btn-secondary btn-sm ref-delete-btn" data-id="${ref.id}" style="margin-left:4px">${t('ref.delete')}</button>
+            </td>
+        </tr>`;
+    }).join('');
+
+    grid.innerHTML = `<table class="discover-table">
+        <thead><tr>
+            <th></th>
+            <th>${t('content.title') || '제목'}</th>
+            <th>${t('discover.channel') || '채널'}</th>
+            <th>${t('discover.views') || '조회수'}</th>
+            <th>${t('discover.likes') || '좋아요'}</th>
+            <th>${t('discover.comments') || '댓글'}</th>
+            <th>${t('channel.subscribers') || '구독자'}</th>
+            <th>${t('discover.subRatio') || '조구비'}</th>
+            <th>${t('ref.savedCol') || '저장일'}</th>
+            <th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+    </table>`;
+
+    bindRefCardEvents(grid);
+}
+
+function bindRefCardEvents(container) {
+    container.querySelectorAll('.ref-use-btn').forEach(btn => {
         btn.addEventListener('click', () => useReferenceAsContent(btn.dataset.id));
     });
-    grid.querySelectorAll('.ref-delete-btn').forEach(btn => {
+    container.querySelectorAll('.ref-delete-btn').forEach(btn => {
         btn.addEventListener('click', () => deleteReference(btn.dataset.id));
     });
 }
