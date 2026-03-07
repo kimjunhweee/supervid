@@ -451,17 +451,7 @@
             <div class="filter-bar">
                 <div class="filter-bar-search">
                     <input type="text" id="searchKeyword" class="filter-bar-input" placeholder="검색어를 입력하세요" data-i18n-placeholder="discover.keywordPlaceholder">
-                    <button class="btn btn-primary" id="searchSubmitBtn" data-i18n="discover.submit">검색</button>
-                    <span class="filter-bar-result-info" id="discoverResultInfo"></span>
-                    <span class="search-quota-info" id="searchQuotaInfo"></span>
-                    <div class="discover-view-toggle" id="discoverViewToggle">
-                        <button class="discover-view-btn active" data-view="grid" title="그리드">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-                        </button>
-                        <button class="discover-view-btn" data-view="table" title="리스트">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                        </button>
-                    </div>
+                    <button class="btn btn-secondary" id="searchSubmitBtn" data-i18n="discover.submit">검색</button>
                 </div>
                 <div class="filter-bar-chips">
                     <select id="searchDuration" class="discover-inline-select">
@@ -544,6 +534,16 @@
                         </div>
                     </div>
                     <button class="filter-bar-clear" id="searchClearFilters" data-i18n="discover.reset">Clear</button>
+                    <span class="filter-bar-result-info" id="discoverResultInfo" style="margin-left:auto"></span>
+                    <span class="search-quota-info" id="searchQuotaInfo"></span>
+                    <div class="discover-view-toggle" id="discoverViewToggle">
+                        <button class="discover-view-btn active" data-view="grid" title="그리드">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        </button>
+                        <button class="discover-view-btn" data-view="table" title="리스트">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="discover-grid" id="discoverGrid">
@@ -559,7 +559,7 @@
             <div class="filter-bar">
                 <div class="filter-bar-search">
                     <input type="text" id="channelSearchKeyword" class="filter-bar-input" placeholder="채널명 또는 키워드를 입력하세요" data-i18n-placeholder="channel.keywordPlaceholder">
-                    <button class="btn btn-primary" id="channelSearchSubmitBtn" data-i18n="channel.submit">검색</button>
+                    <button class="btn btn-secondary" id="channelSearchSubmitBtn" data-i18n="channel.submit">검색</button>
                     <span class="filter-bar-result-info" id="channelResultInfo"></span>
                 </div>
                 <div class="filter-bar-chips">
