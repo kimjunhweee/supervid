@@ -824,9 +824,17 @@ app.get('/api/db/search', requireAuth, checkSearchLimit, async (req, res) => {
     // YouTube 폴백 + 키워드 크롤링 트리거
     triggerCrawlForKeyword(keyword);
 
+    // api_cache 확인 (같은 검색 조건이면 YouTube API 재호출 방지)
+    const apiOrder = (order === 'performance' || order === 'velocity') ? 'viewCount' : order;
+    const durationParam = duration ? `&videoDuration=${encodeURIComponent(duration)}` : '';
+    const fallbackCacheKey = `db-fallback|${keyword}|${apiOrder}|${duration || ''}|${inputPageToken || ''}`;
+
     try {
-        const apiOrder = (order === 'performance' || order === 'velocity') ? 'viewCount' : order;
-        const durationParam = duration ? `&videoDuration=${encodeURIComponent(duration)}` : '';
+        const cached = await getCached(fallbackCacheKey);
+        if (cached) return res.json(cached);
+    } catch { /* 캐시 조회 실패 시 무시 */ }
+
+    try {
         const tokenParam = inputPageToken ? `&pageToken=${encodeURIComponent(inputPageToken)}` : '';
 
         const searchRes = await fetch(
@@ -874,11 +882,14 @@ app.get('/api/db/search', requireAuth, checkSearchLimit, async (req, res) => {
             };
         });
 
-        // YouTube 결과를 바로 DB에 저장 (백그라운드)
+        const result = { videos, source: 'youtube', hasMore: !!searchData.nextPageToken, nextPageToken: searchData.nextPageToken || null };
+
+        // YouTube 결과를 DB에 캐시 + 영속 저장 (백그라운드)
+        setCache(fallbackCacheKey, result, CACHE_TTL);
         persistVideos(videos, keyword);
         persistChannels(Object.entries(subMap).map(([id, subscriberCount]) => ({ id, subscriberCount })));
 
-        return res.json({ videos, source: 'youtube', hasMore: !!searchData.nextPageToken, nextPageToken: searchData.nextPageToken || null });
+        return res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

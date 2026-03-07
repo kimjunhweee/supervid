@@ -319,7 +319,7 @@ body {
     display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;
 }
 .my-channel-stat-row {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 4px;
 }
 .my-channel-goal-row {
     display: grid; grid-template-columns: 1fr;
@@ -523,7 +523,7 @@ body {
 .last-upload-banner {
     display: flex; align-items: flex-start; gap: 14px;
     background: var(--bg-primary); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 28px 24px; margin-bottom: 12px;
+    padding: 28px 24px; margin-bottom: 4px;
 }
 .last-upload-icon {
     width: 40px; height: 40px; border-radius: var(--radius-sm);
@@ -539,7 +539,7 @@ body {
 [data-theme="light"] .last-upload-banner.warn .last-upload-icon { background: rgba(252, 165, 165, 0.2); color: #fca5a5; }
 [data-theme="light"] .last-upload-banner.warn .last-upload-days { color: #e88a8a; }
 
-.chart-card { margin-bottom: 20px; }
+.chart-card { margin-bottom: 12px; }
 .chart-card-header {
     display: flex; align-items: flex-start; justify-content: space-between;
     padding: 14px 16px; border-bottom: 1px solid var(--border);
