@@ -1010,6 +1010,7 @@ body {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 16px;
 }
+[data-theme="dark"] .filter-bar { background: #111; }
 .filter-bar-search { display: flex; gap: 8px; align-items: center; }
 .filter-bar-input {
     flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
