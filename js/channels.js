@@ -9,8 +9,6 @@ let _detailVideos = [];
 let _detailChannel = null;
 let _channelDescCache = {};
 let _lastSearchResults = [];
-let _discoveredChannels = [];
-let _discoveryDone = false;
 let _nextPageToken = null;
 let _lastQuery = '';
 let _lastSubMin = 0;
@@ -81,8 +79,6 @@ async function performChannelSearch(query, subMin, subMax, pageToken) {
 
     if (!isLoadMore) {
         _lastSearchResults = [];
-        _discoveredChannels = [];
-        _discoveryDone = false;
         _nextPageToken = null;
         _lastQuery = query;
         _lastSubMin = subMin;
@@ -123,14 +119,8 @@ async function performChannelSearch(query, subMin, subMax, pageToken) {
 
         if (!isLoadMore) {
             showResultSort('relevance');
-            // Fire-and-forget discovery
-            fetchDiscoveredChannels(query, subMin, subMax);
-        } else {
-            // 더보기 후 발굴 결과에서 중복 자동 제거
-            const nameIds = new Set(_lastSearchResults.map(ch => ch.id));
-            _discoveredChannels = _discoveredChannels.filter(ch => !nameIds.has(ch.id));
         }
-        renderChannelGrid(_lastSearchResults, _discoveredChannels);
+        renderChannelGrid(_lastSearchResults);
         renderLoadMoreBtn();
     } catch (err) {
         if (!isLoadMore) {
@@ -139,32 +129,6 @@ async function performChannelSearch(query, subMin, subMax, pageToken) {
     }
 }
 
-async function fetchDiscoveredChannels(query, subMin, subMax) {
-    const querySnapshot = query;
-    try {
-        const excludeIds = _lastSearchResults.map(ch => ch.id).join(',');
-        const res = await fetch(`/api/youtube/discover-channels?q=${encodeURIComponent(query)}&excludeIds=${encodeURIComponent(excludeIds)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-
-        // Stale check
-        if (_lastQuery !== querySnapshot) return;
-
-        let channels = data.channels || [];
-        // 구독자 필터 적용
-        if (subMin > 0) channels = channels.filter(ch => ch.subscriberCount >= subMin);
-        if (subMax > 0) channels = channels.filter(ch => ch.subscriberCount <= subMax);
-        // 중복 제거
-        const nameIds = new Set(_lastSearchResults.map(ch => ch.id));
-        channels = channels.filter(ch => !nameIds.has(ch.id));
-
-        _discoveredChannels = channels;
-        _discoveryDone = true;
-        renderChannelGrid(_lastSearchResults, _discoveredChannels);
-    } catch {
-        _discoveryDone = true;
-    }
-}
 
 function renderLoadMoreBtn() {
     let wrap = document.getElementById('channelLoadMoreWrap');
@@ -208,7 +172,7 @@ function showResultSort(activeSort) {
             sortBar.querySelectorAll('.ch-sort-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             const sorted = sortChannels(_lastSearchResults, btn.dataset.sort);
-            renderChannelGrid(sorted, _discoveredChannels);
+            renderChannelGrid(sorted);
         });
     });
 }
@@ -241,31 +205,18 @@ function channelCardHtml(ch) {
     </div>`;
 }
 
-function renderChannelGrid(nameResults, discoveredResults) {
+function renderChannelGrid(channels) {
     const grid = document.getElementById('channelGrid');
-    // 중복 채널 제거 (id 기준)
-    const seenIds = new Set();
-    const dedup = arr => (arr || []).filter(ch => { if (seenIds.has(ch.id)) return false; seenIds.add(ch.id); return true; });
-    nameResults = dedup(nameResults);
-    discoveredResults = dedup(discoveredResults);
-    const allChannels = [...nameResults, ...discoveredResults];
 
-    if (!allChannels.length) {
+    if (!channels || !channels.length) {
         grid.innerHTML = `<div class="discover-empty"><p>${t('discover.noResults')}</p></div>`;
         return;
     }
 
     // Cache descriptions
-    allChannels.forEach(ch => { if (ch.description) _channelDescCache[ch.id] = ch.description; });
+    channels.forEach(ch => { if (ch.description) _channelDescCache[ch.id] = ch.description; });
 
-    let html = (nameResults || []).map(ch => channelCardHtml(ch)).join('');
-
-    if (discoveredResults && discoveredResults.length > 0) {
-        html += `<div class="ch-section-divider"><span class="ch-section-label">관련 채널</span></div>`;
-        html += discoveredResults.map(ch => channelCardHtml(ch)).join('');
-    }
-
-    grid.innerHTML = html;
+    grid.innerHTML = channels.map(ch => channelCardHtml(ch)).join('');
 
     // Card click → detail
     grid.querySelectorAll('.channel-card').forEach(card => {

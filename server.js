@@ -1046,22 +1046,71 @@ app.get('/api/youtube/search-channels', requireAuth, checkChannelSearchLimit, as
 
     try {
         const tokenParam = pageToken ? `&pageToken=${pageToken}` : '';
-        const searchRes = await fetch(
-            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(q)}&maxResults=${perPage}${tokenParam}&key=${API_KEY}`
-        );
+
+        // 1) 채널 이름 검색 + 영상 기반 채널 발굴을 병렬 실행
+        const [nameSearchRes, videoSearchRes] = await Promise.all([
+            fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(q)}&maxResults=${perPage}${tokenParam}&key=${API_KEY}`),
+            !pageToken
+                ? fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(q)}&maxResults=50&key=${API_KEY}`)
+                : Promise.resolve(null)
+        ]);
         trackUnits('채널 검색', 100);
-        const searchData = await searchRes.json();
-        if (searchData.error) return res.status(400).json({ error: searchData.error.message });
-        if (!searchData.items || searchData.items.length === 0) return res.json({ channels: [], nextPageToken: null });
+        const nameSearchData = await nameSearchRes.json();
+        if (nameSearchData.error) return res.status(400).json({ error: nameSearchData.error.message });
 
-        const channelIds = searchData.items.map(item => item.id.channelId).join(',');
-        const channelsRes = await fetch(
-            `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet,brandingSettings&id=${channelIds}&key=${API_KEY}`
-        );
-        trackUnits('채널 조회', 1);
-        const channelsData = await channelsRes.json();
+        // 채널 이름 검색에서 나온 channelId
+        const nameChannelIds = (nameSearchData.items || []).map(item => item.id.channelId);
 
-        const channels = (channelsData.items || []).map(ch => ({
+        // 영상 검색에서 발굴된 channelId (첫 페이지만)
+        let discoverChannelIds = [];
+        if (videoSearchRes) {
+            trackUnits('발굴 영상검색', 100);
+            const videoSearchData = await videoSearchRes.json();
+            if (videoSearchData.items) {
+                discoverChannelIds = videoSearchData.items.map(item => item.snippet.channelId);
+            }
+        }
+
+        // 2) 중복 제거 후 모든 channelId를 합침 (이름 검색 결과 우선)
+        const seenIds = new Set();
+        const allChannelIds = [];
+        for (const id of [...nameChannelIds, ...discoverChannelIds]) {
+            if (!seenIds.has(id)) { seenIds.add(id); allChannelIds.push(id); }
+        }
+
+        if (allChannelIds.length === 0) return res.json({ channels: [], nextPageToken: null });
+
+        // 3) 채널 상세 조회 (50개씩 chunk)
+        const allChannelItems = [];
+        for (let i = 0; i < allChannelIds.length; i += 50) {
+            const chunk = allChannelIds.slice(i, i + 50).join(',');
+            const channelsRes = await fetch(
+                `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet,brandingSettings&id=${chunk}&key=${API_KEY}`
+            );
+            trackUnits('채널 조회', 1);
+            const channelsData = await channelsRes.json();
+            if (channelsData.items) allChannelItems.push(...channelsData.items);
+        }
+
+        // 4) 이름 검색 순서를 보존하면서 발굴 채널을 뒤에 붙임
+        const nameIdSet = new Set(nameChannelIds);
+        const channelMap = {};
+        allChannelItems.forEach(ch => { channelMap[ch.id] = ch; });
+
+        const orderedItems = [];
+        // 이름 검색 결과 (원래 순서)
+        for (const id of nameChannelIds) {
+            if (channelMap[id] && !orderedItems.some(c => c.id === channelMap[id].id)) orderedItems.push(channelMap[id]);
+        }
+        // 발굴 결과 (구독자 내림차순)
+        const discoverItems = discoverChannelIds
+            .filter(id => !nameIdSet.has(id) && channelMap[id])
+            .map(id => channelMap[id])
+            .filter((ch, i, arr) => arr.findIndex(c => c.id === ch.id) === i)
+            .sort((a, b) => parseInt(b.statistics.subscriberCount || 0) - parseInt(a.statistics.subscriberCount || 0));
+        orderedItems.push(...discoverItems);
+
+        const channels = orderedItems.map(ch => ({
             id: ch.id,
             title: ch.snippet.title,
             description: ch.snippet.description,
@@ -1075,7 +1124,7 @@ app.get('/api/youtube/search-channels', requireAuth, checkChannelSearchLimit, as
         }));
 
         persistChannels(channels);
-        const result = { channels, nextPageToken: searchData.nextPageToken || null };
+        const result = { channels, nextPageToken: nameSearchData.nextPageToken || null };
         await setCache(cacheKey, result, CACHE_TTL);
         res.json(result);
     } catch (err) {
