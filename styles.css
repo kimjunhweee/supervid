@@ -1020,12 +1020,12 @@ body {
 .search-quota-info { font-size: 12px; color: var(--text-muted); white-space: nowrap; margin-left: 4px; }
 .filter-bar-chips { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .filter-bar-clear {
-    background: var(--bg-hover); border: 1px solid var(--border); border-radius: var(--radius);
+    background: none; border: none;
     color: var(--text-muted); font-size: 12px; font-weight: 500;
-    cursor: pointer; white-space: nowrap; padding: 4px 12px;
-    transition: all var(--transition);
+    text-decoration: underline; text-underline-offset: 2px; cursor: pointer; white-space: nowrap;
+    padding: 0; transition: color var(--transition);
 }
-.filter-bar-clear:hover { color: var(--text-primary); border-color: var(--ring); }
+.filter-bar-clear:hover { color: var(--text-primary); }
 
 /* Custom Select Dropdown (pill) */
 .c-select {
