@@ -1040,7 +1040,7 @@ app.get('/api/youtube/search-channels', requireAuth, checkChannelSearchLimit, as
     if (!q || !q.trim()) return res.status(400).json({ error: '검색어(q)가 필요합니다' });
 
     const perPage = Math.min(parseInt(maxResults) || 12, 50);
-    const cacheKey = `ch|${q}|${perPage}|${pageToken || ''}`;
+    const cacheKey = `ch2|${q}|${perPage}|${pageToken || ''}`;
     const cached = await getCached(cacheKey);
     if (cached) return res.json(cached);
 

@@ -119,9 +119,9 @@ async function performChannelSearch(query, subMin, subMax, pageToken) {
             : t('discover.resultCount', { n: _lastSearchResults.length });
 
         if (!isLoadMore) {
-            showResultSort('relevance');
+            showResultSort('subscribers');
         }
-        renderChannelGrid(_lastSearchResults);
+        renderChannelGrid(sortChannels(_lastSearchResults, 'subscribers'));
         renderLoadMoreBtn();
     } catch (err) {
         if (!isLoadMore) {
@@ -159,7 +159,6 @@ function showResultSort(activeSort) {
     if (!_lastSearchResults.length) { sortBar.style.display = 'none'; return; }
     sortBar.style.display = 'flex';
     const sorts = [
-        { key: 'relevance', label: '관련도순' },
         { key: 'subscribers', label: '구독자순' },
         { key: 'views', label: '조회수순' },
         { key: 'videos', label: '영상수순' },
